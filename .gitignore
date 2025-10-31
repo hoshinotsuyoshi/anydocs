@@ -1,1 +1,5 @@
 dist
+docs.db
+docs.db-shm
+docs.db-wal
+node_modules
