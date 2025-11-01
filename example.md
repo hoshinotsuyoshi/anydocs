@@ -17,7 +17,7 @@ pnpm run build
 git clone --depth 1 https://github.com/vercel/next.js.git /tmp/nextjs-clone
 
 # Copy documentation to test-docs
-cp -r /tmp/nextjs-clone/docs test-docs
+mv /tmp/nextjs-clone/docs test-docs
 
 # Clean up
 rm -rf /tmp/nextjs-clone
@@ -30,12 +30,12 @@ rm -rf /tmp/nextjs-clone
 rm -f docs.db*
 
 # Index all Markdown and MDX files
-node dist/index.js index test-docs "**/*.{md,mdx}"
+node dist/index.js index test-docs "**/*.{md,mdx}" --project nextjs
 ```
 
 **Output:**
 ```
-Found 374 files to index
+Found 374 files to index for project: nextjs
 Indexed: /index.mdx
 Indexed: /03-architecture/supported-browsers.mdx
 Indexed: /03-architecture/index.mdx
@@ -63,12 +63,14 @@ node dist/index.js search "routing"
 [
   {
     "path": "/01-app/01-getting-started/15-route-handlers.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "\n## Route Handlers\n\nRoute Handlers allow you to create custom request...",
     "score": -0.8348340006798176
   },
   {
     "path": "/01-app/01-getting-started/02-project-structure.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...A route becomes public when a `page` or `route` file...",
     "score": -0.8313367184491345
@@ -87,12 +89,14 @@ node dist/index.js search "server components AND data fetching" -n 2
 [
   {
     "path": "/01-app/02-guides/caching.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...Instead, you can fetch data in the components that need...",
     "score": -3.1386165826942443
   },
   {
     "path": "/01-app/03-api-reference/04-functions/fetch.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...fetch` with `async` and `await` directly within Server Components.\n\n```tsx...",
     "score": -3.114538621607736
@@ -111,18 +115,21 @@ node dist/index.js search "middleware" -n 3
 [
   {
     "path": "/01-app/03-api-reference/03-file-conventions/proxy.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...The term \"middleware\" often confuses users with Express.js middleware...",
     "score": -6.740092265927857
   },
   {
     "path": "/01-app/03-api-reference/05-config/01-next-config-js/adapterPath.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...string\n}\n```\n\n### Middleware (`outputs.middleware`)\n\nMiddleware function (if present):\n\n```typescript\n{\n  type...",
     "score": -6.113219224959214
   },
   {
     "path": "/01-app/02-guides/upgrading/codemods.mdx",
+    "project": "nextjs",
     "title": "",
     "snippet": "...It:\n\n- Renames `middleware.<extension>` to `proxy.<extension>` (e.g. `middleware...",
     "score": -5.981460120663272

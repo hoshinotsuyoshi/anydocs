@@ -14,6 +14,7 @@ function openDb() {
   db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS pages USING fts5(
       path UNINDEXED,
+      project UNINDEXED,
       title,
       body,
       tokenize='porter'
@@ -22,28 +23,55 @@ function openDb() {
   return db;
 }
 
-function cmdDocs(p: string) {
+function cmdDocs(p: string, project?: string) {
   const db = openDb();
-  const row = db.prepare("SELECT body FROM pages WHERE path = ?").get(p) as { body: string } | undefined;
+  let row: { body: string } | undefined;
+
+  if (project) {
+    row = db.prepare("SELECT body FROM pages WHERE path = ? AND project = ?").get(p, project) as { body: string } | undefined;
+  } else {
+    row = db.prepare("SELECT body FROM pages WHERE path = ? LIMIT 1").get(p) as { body: string } | undefined;
+  }
+
   if (!row) {
-    console.error(`Not found: ${p}`);
+    console.error(`Not found: ${p}${project ? ` in project: ${project}` : ""}`);
     process.exit(1);
   }
   process.stdout.write(row.body);
 }
 
-function cmdSearch(query: string, limit = 10) {
+function cmdSearch(query: string, projects: string[] = [], limit = 10) {
   const db = openDb();
-  const sql = `
-    SELECT path, title,
-           snippet(pages, 2, '<b>', '</b>', '...', 10) AS snippet,
-           bm25(pages) AS score
-    FROM pages
-    WHERE pages MATCH ?
-    ORDER BY score
-    LIMIT ?;
-  `;
-  const rows = db.prepare(sql).all(query, limit);
+
+  let sql: string;
+  let params: (string | number)[];
+
+  if (projects.length > 0) {
+    const placeholders = projects.map(() => "?").join(", ");
+    sql = `
+      SELECT path, project, title,
+             snippet(pages, 3, '<b>', '</b>', '...', 10) AS snippet,
+             bm25(pages) AS score
+      FROM pages
+      WHERE pages MATCH ? AND project IN (${placeholders})
+      ORDER BY score
+      LIMIT ?;
+    `;
+    params = [query, ...projects, limit];
+  } else {
+    sql = `
+      SELECT path, project, title,
+             snippet(pages, 3, '<b>', '</b>', '...', 10) AS snippet,
+             bm25(pages) AS score
+      FROM pages
+      WHERE pages MATCH ?
+      ORDER BY score
+      LIMIT ?;
+    `;
+    params = [query, limit];
+  }
+
+  const rows = db.prepare(sql).all(...params);
   process.stdout.write(JSON.stringify(rows, null, 2));
 }
 
@@ -58,7 +86,7 @@ function normalizePath(filePath: string, rootDir: string): string {
   return normalized;
 }
 
-function cmdIndex(rootDir: string, pattern = "**/*.md") {
+function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
   const db = openDb();
   const absoluteRoot = path.resolve(rootDir);
 
@@ -69,11 +97,11 @@ function cmdIndex(rootDir: string, pattern = "**/*.md") {
     onlyFiles: true,
   });
 
-  console.error(`Found ${files.length} files to index`);
+  console.error(`Found ${files.length} files to index for project: ${project}`);
 
   // Prepare statements
-  const deleteStmt = db.prepare("DELETE FROM pages WHERE path = ?");
-  const insertStmt = db.prepare("INSERT INTO pages (path, title, body) VALUES (?, ?, ?)");
+  const deleteStmt = db.prepare("DELETE FROM pages WHERE path = ? AND project = ?");
+  const insertStmt = db.prepare("INSERT INTO pages (path, project, title, body) VALUES (?, ?, ?, ?)");
 
   // Process in transaction
   const indexAll = db.transaction(() => {
@@ -90,8 +118,8 @@ function cmdIndex(rootDir: string, pattern = "**/*.md") {
       const normalizedPath = normalizePath(filePath, absoluteRoot);
 
       // Delete existing entry (if any) and insert new one
-      deleteStmt.run(normalizedPath);
-      insertStmt.run(normalizedPath, title, body);
+      deleteStmt.run(normalizedPath, project);
+      insertStmt.run(normalizedPath, project, title, body);
 
       console.error(`Indexed: ${normalizedPath}`);
     }
@@ -108,17 +136,24 @@ program
   .command("index")
   .argument("<root>", "root directory to index")
   .argument("[pattern]", "glob pattern for markdown files", "**/*.md")
-  .action(cmdIndex);
+  .requiredOption("-p, --project <name>", "project name")
+  .action((root, pattern, opts) => cmdIndex(root, opts.project, pattern));
 
 program
   .command("docs")
   .argument("<path>", "logical path, e.g. /guide/intro.md")
-  .action(cmdDocs);
+  .option("-p, --project <name>", "filter by project")
+  .action((path, opts) => cmdDocs(path, opts.project));
+
+function collectProjects(value: string, previous: string[] = []) {
+  return previous.concat([value]);
+}
 
 program
   .command("search")
   .argument("<query>", "FTS5 search query")
   .option("-n, --limit <num>", "max results", "10")
-  .action((query, opts) => cmdSearch(query, Number(opts.limit)));
+  .option("-p, --project <name>", "filter by project (can be specified multiple times)", collectProjects, [])
+  .action((query, opts) => cmdSearch(query, opts.project, Number(opts.limit)));
 
 program.parse();
