@@ -81,9 +81,8 @@ function extractTitle(content: string): string {
 }
 
 function normalizePath(filePath: string, rootDir: string): string {
-  const rel = path.relative(rootDir, filePath);
-  const normalized = "/" + rel.split(path.sep).join("/");
-  return normalized;
+  // Return absolute path as-is (already absolute from fast-glob)
+  return filePath;
 }
 
 function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
