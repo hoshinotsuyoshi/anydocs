@@ -17,29 +17,125 @@ pnpm install
 pnpm run build
 ```
 
-## Usage
-
-### 1. Insert documents (manual, until `index` command is implemented)
+## Quick Start
 
 ```bash
-sqlite3 docs.db "INSERT INTO pages VALUES('/guide/intro.md','Intro','# Hello world
-This is a test document.');"
-```
+# 1. Build the project
+pnpm install
+pnpm run build
 
-### 2. Retrieve a document
+# 2. Create a test directory with Markdown files
+mkdir -p docs/guide
+cat > docs/guide/intro.md << 'EOF'
+---
+title: Introduction
+date: 2025-01-01
+---
 
-```bash
+# Getting Started
+
+Welcome to the documentation system!
+EOF
+
+# 3. Index the documents
+node dist/index.js index docs
+
+# 4. Search for content
+node dist/index.js search "documentation"
+
+# 5. Retrieve a specific document
 node dist/index.js docs /guide/intro.md
 ```
 
-### 3. Search documents
+## Usage
+
+### Index Markdown Files
+
+Index all Markdown files in a directory:
+
+```bash
+# Index with default pattern (**/*.md)
+node dist/index.js index ./docs
+
+# Index with custom glob pattern
+node dist/index.js index ./docs "**/*.{md,markdown}"
+
+# Index subdirectories only
+node dist/index.js index ./docs "guides/**/*.md"
+```
+
+**What indexing does:**
+- Scans directory recursively for Markdown files
+- Removes YAML/TOML front-matter
+- Extracts first `# Heading` as title
+- Normalizes paths (relative from root, starting with `/`)
+- Stores in SQLite FTS5 for fast search
+- Idempotent: re-indexing same path updates the entry
+
+### Search Documents
 
 ```bash
 # Basic search
 node dist/index.js search "hello"
 
-# Limit results
+# Limit number of results
 node dist/index.js search "world" -n 5
+
+# Search with FTS5 query syntax
+node dist/index.js search "hello AND world"
+node dist/index.js search '"exact phrase"'
+node dist/index.js search "run*"  # Prefix search
+node dist/index.js search "hello OR world"
+node dist/index.js search "hello NOT world"
+```
+
+**Search output (JSON):**
+```json
+[
+  {
+    "path": "/guide/intro.md",
+    "title": "Getting Started",
+    "snippet": "Welcome to the <b>documentation</b> system!",
+    "score": -0.0000015
+  }
+]
+```
+
+### Retrieve Document
+
+Retrieve the raw Markdown content:
+
+```bash
+node dist/index.js docs /guide/intro.md
+```
+
+Output is the original Markdown with front-matter removed.
+
+### Environment Variables
+
+```bash
+# Use custom database location
+export MYDOCS_DB=/path/to/custom.db
+node dist/index.js index ./docs
+```
+
+### Complete Example
+
+```bash
+# Clean start
+rm -f docs.db*
+
+# Index your documentation
+node dist/index.js index ./my-docs
+
+# Search for keywords
+node dist/index.js search "installation" -n 3
+
+# Get specific document
+node dist/index.js docs /getting-started.md
+
+# Re-index (updates existing entries)
+node dist/index.js index ./my-docs
 ```
 
 ## Architecture
@@ -59,14 +155,16 @@ node dist/index.js search "world" -n 5
 
 ## TODO
 
-- [ ] Implement `index <root> [pattern]` command to recursively index Markdown files
-- [ ] Parse and extract front-matter
-- [ ] Extract first heading as title
-- [ ] Normalize paths (relative from root, starting with `/`)
-- [ ] Make indexing idempotent (replace existing paths)
-- [ ] Add transactional batch indexing
+- [x] Implement `index <root> [pattern]` command to recursively index Markdown files
+- [x] Parse and extract front-matter
+- [x] Extract first heading as title
+- [x] Normalize paths (relative from root, starting with `/`)
+- [x] Make indexing idempotent (replace existing paths)
+- [x] Add transactional batch indexing
 - [ ] Support differential re-indexing with mtime tracking
 - [ ] Implement `export-llms` command for llms.txt generation
+- [ ] Add CLI package installation (npm/pnpm global install)
+- [ ] Add progress indicator for large indexing jobs
 
 ## Specification
 
