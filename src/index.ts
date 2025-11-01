@@ -3,6 +3,8 @@ import { Command } from "commander";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import fg from "fast-glob";
+import matter from "gray-matter";
 
 const DB_PATH = process.env.MYDOCS_DB ?? path.resolve(process.cwd(), "docs.db");
 
@@ -45,8 +47,68 @@ function cmdSearch(query: string, limit = 10) {
   process.stdout.write(JSON.stringify(rows, null, 2));
 }
 
+function extractTitle(content: string): string {
+  const match = content.match(/^#\s+(.+)$/m);
+  return match ? match[1].trim() : "";
+}
+
+function normalizePath(filePath: string, rootDir: string): string {
+  const rel = path.relative(rootDir, filePath);
+  const normalized = "/" + rel.split(path.sep).join("/");
+  return normalized;
+}
+
+function cmdIndex(rootDir: string, pattern = "**/*.md") {
+  const db = openDb();
+  const absoluteRoot = path.resolve(rootDir);
+
+  // Find all markdown files
+  const files = fg.sync(pattern, {
+    cwd: absoluteRoot,
+    absolute: true,
+    onlyFiles: true,
+  });
+
+  console.error(`Found ${files.length} files to index`);
+
+  // Prepare statements
+  const deleteStmt = db.prepare("DELETE FROM pages WHERE path = ?");
+  const insertStmt = db.prepare("INSERT INTO pages (path, title, body) VALUES (?, ?, ?)");
+
+  // Process in transaction
+  const indexAll = db.transaction(() => {
+    for (const filePath of files) {
+      const content = fs.readFileSync(filePath, "utf-8");
+
+      // Parse and remove front-matter
+      const { content: body } = matter(content);
+
+      // Extract title from first heading
+      const title = extractTitle(body);
+
+      // Normalize path
+      const normalizedPath = normalizePath(filePath, absoluteRoot);
+
+      // Delete existing entry (if any) and insert new one
+      deleteStmt.run(normalizedPath);
+      insertStmt.run(normalizedPath, title, body);
+
+      console.error(`Indexed: ${normalizedPath}`);
+    }
+  });
+
+  indexAll();
+  console.error("Indexing complete");
+}
+
 const program = new Command();
 program.name("mydocs").description("Docs & search CLI using SQLite FTS5");
+
+program
+  .command("index")
+  .argument("<root>", "root directory to index")
+  .argument("[pattern]", "glob pattern for markdown files", "**/*.md")
+  .action(cmdIndex);
 
 program
   .command("docs")
