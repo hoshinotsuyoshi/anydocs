@@ -3,3 +3,4 @@ docs.db
 docs.db-shm
 docs.db-wal
 node_modules
+test-docs
