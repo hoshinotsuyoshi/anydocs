@@ -1,11 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import fg from "fast-glob";
-import matter from "gray-matter";
-import toml from "toml";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
+import { parseFrontMatter } from "../../indexer/parseFrontMatter.js";
 
 export function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
   const db = openDb();
@@ -35,11 +34,7 @@ export function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") 
         const content = fs.readFileSync(filePath, "utf-8");
 
         // Parse and remove front-matter (supports YAML, TOML, JSON)
-        const { content: body } = matter(content, {
-          engines: {
-            toml: toml.parse.bind(toml),
-          },
-        });
+        const body = parseFrontMatter(content);
 
         // Extract title from first heading
         const title = extractTitle(body);
