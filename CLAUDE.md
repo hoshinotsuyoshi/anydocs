@@ -28,10 +28,10 @@ node dist/index.js
 
 ```bash
 # Index Markdown files (--project is required)
-# Paths should be under $XDG_DATA_HOME/mydocs (or $HOME/.local/share/mydocs)
+# Recommended: Use symlinks under $XDG_DATA_HOME/mydocs/docs/
 node dist/index.js index <root-dir> [glob-pattern] --project <name>
-node dist/index.js index ~/.local/share/mydocs/nextjs --project nextjs                    # default: **/*.md
-node dist/index.js index ~/.local/share/mydocs/nextjs "**/*.{md,mdx}" --project nextjs   # custom pattern
+node dist/index.js index ~/.local/share/mydocs/docs/nextjs --project nextjs                    # default: **/*.md
+node dist/index.js index ~/.local/share/mydocs/docs/nextjs "**/*.{md,mdx}" --project nextjs   # custom pattern
 
 # Search indexed documents
 node dist/index.js search "query" [-n limit] [--project <name>]
@@ -42,13 +42,24 @@ node dist/index.js search "query" --project nextjs --project react     # specifi
 node dist/index.js docs /path/from/root.md [--project <name>]
 ```
 
+## Directory Structure
+
+```
+$XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
+├── docs.db                      # SQLite database (auto-created)
+└── docs/                        # Documentation root
+    ├── nextjs/                  # Symlink or actual directory
+    ├── react/
+    └── vue/
+```
+
 ## Architecture
 
 ### Single-File Design
 All code is in `src/index.ts` (125 lines). The CLI uses Commander.js for command parsing and better-sqlite3 for database operations.
 
 ### Database Schema
-- Single `docs.db` file in CWD (override with `MYDOCS_DB` env var)
+- Single `docs.db` file at `$XDG_DATA_HOME/mydocs/docs.db` (override with `MYDOCS_DB` env var)
 - FTS5 virtual table: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
 - WAL mode enabled for concurrency
 - Supports multiple projects in a single database
@@ -74,9 +85,11 @@ All code is in `src/index.ts` (125 lines). The CLI uses Commander.js for command
 Paths are stored relative to the indexing root directory:
 - Uses XDG Base Directory specification: `$XDG_DATA_HOME/mydocs`
 - Falls back to `$HOME/.local/share/mydocs` if `XDG_DATA_HOME` is not set
+- Database stored at `$XDG_DATA_HOME/mydocs/docs.db`
+- Documentation organized under `$XDG_DATA_HOME/mydocs/docs/`
 - Supports symlinks (resolved via `fs.realpathSync()`)
 - Paths normalized to `/`-prefixed relative format (e.g., `/guide/intro.md`)
-- Multiple projects can be organized under `$XDG_DATA_HOME/mydocs/`
+- Multiple projects can be organized under `docs/` subdirectory
 - Project name stored separately in `project` column for filtering
 
 ### Search Features
@@ -105,7 +118,7 @@ Paths are stored relative to the indexing root directory:
 - Paths are stored relative to indexing root directory
 - Symlinks are resolved with `fs.realpathSync()` for consistent path handling
 - Multiple projects can coexist in one database with `project` column filtering
-- Recommended structure: `$XDG_DATA_HOME/mydocs/{project-name}/` or use symlinks
+- Recommended structure: `$XDG_DATA_HOME/mydocs/docs/{project-name}/` or use symlinks
 - Front-matter is stripped from indexed body but title extraction happens post-stripping
 - Exit codes: 0 for success, 1 for not found (docs command)
-- Database location: CWD by default, configurable via `MYDOCS_DB` environment variable
+- Database location: `$XDG_DATA_HOME/mydocs/docs.db` by default, configurable via `MYDOCS_DB` environment variable

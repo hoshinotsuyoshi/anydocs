@@ -16,7 +16,8 @@ function getDataHome(): string {
 }
 
 const MYDOCS_ROOT = path.join(getDataHome(), "mydocs");
-const DB_PATH = process.env.MYDOCS_DB ?? path.resolve(process.cwd(), "docs.db");
+const MYDOCS_DOCS = path.join(MYDOCS_ROOT, "docs");
+const DB_PATH = process.env.MYDOCS_DB ?? path.join(MYDOCS_ROOT, "docs.db");
 
 function openDb() {
   const db = new Database(DB_PATH);
