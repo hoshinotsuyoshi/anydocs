@@ -136,18 +136,12 @@ CREATE VIRTUAL TABLE pages USING fts5(
 ```
 $XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
 ├── db/
-│   └── default.db               # Main database (migrated from docs.db)
+│   └── default.db               # Main database
 └── docs/                        # Documentation root (symlinks recommended)
     ├── nextjs/                  # Project directories or symlinks
     ├── react/
     └── valibot/
 ```
-
-**Database Migration:**
-- Legacy `docs.db` is automatically migrated to `db/default.db` on first run
-- WAL files (`docs.db-wal`, `docs.db-shm`) are moved along with the database
-- Migration message is logged to stderr
-- Prepares for future multi-database support
 
 ### Path Normalization
 
