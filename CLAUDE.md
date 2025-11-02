@@ -131,13 +131,31 @@ CREATE VIRTUAL TABLE pages USING fts5(
 - **BM25 ranking**: Lower scores = better match
 - **Snippet generation**: `snippet()` function with `<b>...</b>` highlighting
 
+### Directory Structure
+
+```
+$XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
+├── db/
+│   └── default.db               # Main database (migrated from docs.db)
+└── docs/                        # Documentation root (symlinks recommended)
+    ├── nextjs/                  # Project directories or symlinks
+    ├── react/
+    └── valibot/
+```
+
+**Database Migration:**
+- Legacy `docs.db` is automatically migrated to `db/default.db` on first run
+- WAL files (`docs.db-wal`, `docs.db-shm`) are moved along with the database
+- Migration message is logged to stderr
+- Prepares for future multi-database support
+
 ### Path Normalization
 
 - Paths stored relative to indexing root directory
 - Format: `/`-prefixed, `/`-separated (e.g., `/guide/intro.md`)
 - Symlinks resolved with `fs.realpathSync()` for consistency
 - XDG Base Directory: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
-- Database location: `$XDG_DATA_HOME/mydocs/docs.db` (override with `MYDOCS_DB` env var)
+- Database location: `$XDG_DATA_HOME/mydocs/db/default.db` (override with `MYDOCS_DB` env var)
 
 ### Front-matter Parsing
 
