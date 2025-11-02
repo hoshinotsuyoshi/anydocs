@@ -1,6 +1,6 @@
 import path from "node:path";
 import fg from "fast-glob";
-import type { Result } from "neverthrow";
+import { Result as R, type Result } from "neverthrow";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
@@ -121,6 +121,15 @@ export function cmdIndex(
     console.error(`\nIndexed: ${indexed} files, Skipped: ${skipped} files`);
   });
 
-  indexAll();
+  const transactionResult = R.fromThrowable(
+    () => indexAll(),
+    (error) => new Error(`Transaction failed: ${error}`),
+  )();
+
+  if (transactionResult.isErr()) {
+    console.error(`Indexing failed: ${transactionResult.error.message}`);
+    process.exit(1);
+  }
+
   console.error("Indexing complete");
 }

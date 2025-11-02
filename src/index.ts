@@ -35,6 +35,10 @@ program
     collectProjects,
     [],
   )
-  .action((query, opts) => cmdSearch(query, opts.project, Number(opts.limit)));
+  .action((query, opts) => {
+    const parsedLimit = Number(opts.limit);
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
+    cmdSearch(query, opts.project, limit);
+  });
 
 program.parse();
