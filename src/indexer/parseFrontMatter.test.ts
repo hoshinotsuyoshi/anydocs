@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseFrontMatter } from "./parseFrontMatter.js";
 
-describe("parseFrontMatter", () => {
+describe("parseFrontMatter with default (toml) engine", () => {
   it("should parse YAML front-matter with --- delimiter", () => {
     const content = `---
 title: Hello World
@@ -89,5 +89,38 @@ value = 2
     const result = parseFrontMatter(content);
     expect(result).toContain("# Content");
     expect(result).not.toContain("[[items]]");
+  });
+});
+
+describe("parseFrontMatter with smol-toml engine", () => {
+  const supabaseContent = `---
+title = "Test with smol-toml"
+topics = [ "database" ]
+
+[[errors]]
+code = "42501"
+message = "test error"
+---
+
+# Content`;
+
+  it("should parse TOML syntax with --- delimiter using smol-toml", () => {
+    const result = parseFrontMatter(supabaseContent, "smol-toml");
+    expect(result).toContain("# Content");
+    expect(result).not.toContain("title =");
+    expect(result).not.toContain("[[errors]]");
+  });
+
+  it("should parse TOML syntax with --- delimiter using toml (default)", () => {
+    const result = parseFrontMatter(supabaseContent, "toml");
+    expect(result).toContain("# Content");
+    expect(result).not.toContain("title =");
+    expect(result).not.toContain("[[errors]]");
+  });
+
+  it("should produce same result with both engines", () => {
+    const resultToml = parseFrontMatter(supabaseContent, "toml");
+    const resultSmolToml = parseFrontMatter(supabaseContent, "smol-toml");
+    expect(resultToml).toBe(resultSmolToml);
   });
 });

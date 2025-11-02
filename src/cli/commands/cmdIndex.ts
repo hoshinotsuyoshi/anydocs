@@ -4,9 +4,14 @@ import fg from "fast-glob";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
-import { parseFrontMatter } from "../../indexer/parseFrontMatter.js";
+import { type TomlEngine, parseFrontMatter } from "../../indexer/parseFrontMatter.js";
 
-export function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
+export function cmdIndex(
+  rootDir: string,
+  project: string,
+  pattern = "**/*.md",
+  tomlEngine: TomlEngine = "toml",
+) {
   const db = openDb();
   const absoluteRoot = path.resolve(rootDir);
 
@@ -34,7 +39,7 @@ export function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") 
         const content = fs.readFileSync(filePath, "utf-8");
 
         // Parse and remove front-matter (supports YAML, TOML, JSON)
-        const body = parseFrontMatter(content);
+        const body = parseFrontMatter(content, tomlEngine);
 
         // Extract title from first heading
         const title = extractTitle(body);

@@ -13,7 +13,15 @@ program
   .argument("<root>", "root directory to index")
   .argument("[pattern]", "glob pattern for markdown files", "**/*.md")
   .requiredOption("-p, --project <name>", "project name")
-  .action((root, pattern, opts) => cmdIndex(root, opts.project, pattern));
+  .option(
+    "--toml-engine <engine>",
+    "TOML parser engine: 'toml' or 'smol-toml'",
+    "toml",
+  )
+  .action((root, pattern, opts) => {
+    const tomlEngine = opts.tomlEngine === "smol-toml" ? "smol-toml" : "toml";
+    cmdIndex(root, opts.project, pattern, tomlEngine);
+  });
 
 program
   .command("docs")
