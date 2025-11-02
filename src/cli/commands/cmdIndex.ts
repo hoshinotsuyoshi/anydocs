@@ -35,29 +35,32 @@ export function cmdIndex(
     let indexed = 0;
     let skipped = 0;
     for (const filePath of files) {
-      try {
-        const content = fs.readFileSync(filePath, "utf-8");
+      const content = fs.readFileSync(filePath, "utf-8");
 
-        // Parse and remove front-matter (supports YAML, TOML, JSON)
-        const body = parseFrontMatter(content, tomlEngine);
+      // Parse and remove front-matter (supports YAML, TOML, JSON)
+      const parseResult = parseFrontMatter(content, tomlEngine);
 
-        // Extract title from first heading
-        const title = extractTitle(body);
-
-        // Normalize path
-        const normalizedPath = normalizePath(filePath, absoluteRoot);
-
-        // Delete existing entry (if any) and insert new one
-        deleteStmt.run(normalizedPath, project);
-        insertStmt.run(normalizedPath, project, title, body);
-
-        console.error(`Indexed: ${normalizedPath}`);
-        indexed++;
-      } catch (_error) {
+      if (parseResult.isErr()) {
         skipped++;
         const normalizedPath = normalizePath(filePath, absoluteRoot);
-        console.error(`Skipped (parse error): ${normalizedPath}`);
+        console.error(`Skipped (parse error): ${normalizedPath} - ${parseResult.error.message}`);
+        continue;
       }
+
+      const body = parseResult.value;
+
+      // Extract title from first heading
+      const title = extractTitle(body);
+
+      // Normalize path
+      const normalizedPath = normalizePath(filePath, absoluteRoot);
+
+      // Delete existing entry (if any) and insert new one
+      deleteStmt.run(normalizedPath, project);
+      insertStmt.run(normalizedPath, project, title, body);
+
+      console.error(`Indexed: ${normalizedPath}`);
+      indexed++;
     }
     console.error(`\nIndexed: ${indexed} files, Skipped: ${skipped} files`);
   });

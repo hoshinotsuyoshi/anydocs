@@ -15,9 +15,12 @@ tags:
 This is the body.`;
 
     const result = parseFrontMatter(content);
-    expect(result).toContain("# Content");
-    expect(result).toContain("This is the body.");
-    expect(result).not.toContain("title: Hello World");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("# Content");
+      expect(result.value).toContain("This is the body.");
+      expect(result.value).not.toContain("title: Hello World");
+    }
   });
 
   it("should parse TOML front-matter with ---toml language marker", () => {
@@ -31,9 +34,12 @@ tags = ["test", "example"]
 This is the body.`;
 
     const result = parseFrontMatter(content);
-    expect(result).toContain("# Content");
-    expect(result).toContain("This is the body.");
-    expect(result).not.toContain('title = "Hello World"');
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("# Content");
+      expect(result.value).toContain("This is the body.");
+      expect(result.value).not.toContain('title = "Hello World"');
+    }
   });
 
   it("should parse TOML syntax with --- delimiter (Supabase docs format)", () => {
@@ -56,10 +62,13 @@ If you're currently blocked by the above error, run the following in your Supaba
 - Try \`drop extension pg_net; create extension pg_net schema extensions;\``;
 
     const result = parseFrontMatter(content);
-    expect(result).toContain("If you're currently blocked");
-    expect(result).toContain("Supabase SQL editor");
-    expect(result).not.toContain("title =");
-    expect(result).not.toContain("[[errors]]");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("If you're currently blocked");
+      expect(result.value).toContain("Supabase SQL editor");
+      expect(result.value).not.toContain("title =");
+      expect(result.value).not.toContain("[[errors]]");
+    }
   });
 
   it("should handle content without front-matter", () => {
@@ -68,7 +77,10 @@ If you're currently blocked by the above error, run the following in your Supaba
 This is content without front-matter.`;
 
     const result = parseFrontMatter(content);
-    expect(result).toBe(content);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBe(content);
+    }
   });
 
   it("should handle TOML array of tables syntax", () => {
@@ -87,8 +99,11 @@ value = 2
 # Content`;
 
     const result = parseFrontMatter(content);
-    expect(result).toContain("# Content");
-    expect(result).not.toContain("[[items]]");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("# Content");
+      expect(result.value).not.toContain("[[items]]");
+    }
   });
 });
 
@@ -106,21 +121,33 @@ message = "test error"
 
   it("should parse TOML syntax with --- delimiter using smol-toml", () => {
     const result = parseFrontMatter(supabaseContent, "smol-toml");
-    expect(result).toContain("# Content");
-    expect(result).not.toContain("title =");
-    expect(result).not.toContain("[[errors]]");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("# Content");
+      expect(result.value).not.toContain("title =");
+      expect(result.value).not.toContain("[[errors]]");
+    }
   });
 
   it("should parse TOML syntax with --- delimiter using toml (default)", () => {
     const result = parseFrontMatter(supabaseContent, "toml");
-    expect(result).toContain("# Content");
-    expect(result).not.toContain("title =");
-    expect(result).not.toContain("[[errors]]");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toContain("# Content");
+      expect(result.value).not.toContain("title =");
+      expect(result.value).not.toContain("[[errors]]");
+    }
   });
 
   it("should produce same result with both engines", () => {
     const resultToml = parseFrontMatter(supabaseContent, "toml");
     const resultSmolToml = parseFrontMatter(supabaseContent, "smol-toml");
-    expect(resultToml).toBe(resultSmolToml);
+
+    expect(resultToml.isOk()).toBe(true);
+    expect(resultSmolToml.isOk()).toBe(true);
+
+    if (resultToml.isOk() && resultSmolToml.isOk()) {
+      expect(resultToml.value).toBe(resultSmolToml.value);
+    }
   });
 });
