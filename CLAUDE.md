@@ -19,106 +19,228 @@ pnpm run build
 pnpm run dev
 
 # Run built CLI
-pnpm start
-# or
 node dist/index.js
+
+# Testing
+pnpm test              # Run tests in watch mode
+pnpm test:run          # Run all tests once
+pnpm test:ui           # Open Vitest UI
+
+# Linting and formatting
+pnpm run lint          # Check code with Biome
+pnpm run lint:fix      # Auto-fix issues
+pnpm run format        # Format code
 ```
 
 ## CLI Usage
 
 ```bash
 # Index Markdown files (--project is required)
-# Recommended: Use symlinks under $XDG_DATA_HOME/mydocs/docs/
 node dist/index.js index <root-dir> [glob-pattern] --project <name>
-node dist/index.js index ~/.local/share/mydocs/docs/nextjs --project nextjs                    # default: **/*.md
-node dist/index.js index ~/.local/share/mydocs/docs/nextjs "**/*.{md,mdx}" --project nextjs   # custom pattern
+node dist/index.js index ~/.local/share/mydocs/docs/nextjs --project nextjs
+node dist/index.js index ~/docs/react "**/*.{md,mdx}" --project react
+
+# Optional: specify TOML parser engine (default: toml, alternative: smol-toml)
+node dist/index.js index ~/docs --project myproject --toml-engine smol-toml
 
 # Search indexed documents
 node dist/index.js search "query" [-n limit] [--project <name>]
-node dist/index.js search "hello AND world" -n 5                       # all projects
-node dist/index.js search "query" --project nextjs --project react     # specific projects
+node dist/index.js search "safeParse" -n 5
+node dist/index.js search "hello AND world" --project nextjs --project react
 
 # Retrieve specific document (use path relative to indexed root)
-node dist/index.js docs /path/from/root.md [--project <name>]
+node dist/index.js docs /path/from/root.md --project <name>
 ```
 
-## Directory Structure
+## Architecture Overview
+
+### Code Organization (1 file = 1 function principle)
 
 ```
-$XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
-├── docs.db                      # SQLite database (auto-created)
-└── docs/                        # Documentation root
-    ├── nextjs/                  # Symlink or actual directory
-    ├── react/
-    └── vue/
+src/
+├── index.ts                   # CLI entry point (Commander.js)
+├── cli/
+│   ├── collectProjects.ts     # CLI option collector
+│   └── commands/
+│       ├── cmdIndex.ts        # Index command with processFile()
+│       ├── cmdSearch.ts       # Search command with sanitization
+│       └── cmdDocs.ts         # Docs retrieval command
+├── db/
+│   ├── openDb.ts              # Database initialization with Result
+│   ├── schemas.ts             # Valibot schemas for runtime validation
+│   └── sanitizeFts5Query.ts   # FTS5 query sanitization
+├── indexer/
+│   ├── readFile.ts            # File reading with Result
+│   ├── parseFrontMatter.ts    # Front-matter parsing (YAML/TOML)
+│   ├── extractTitle.ts        # Extract first # heading
+│   └── normalizePath.ts       # Path normalization with Result
+└── config/
+    ├── getDataHome.ts         # XDG Base Directory support
+    └── paths.ts               # Global path constants
 ```
 
-## Architecture
+### Railway Oriented Programming with neverthrow
 
-### Single-File Design
-All code is in `src/index.ts` (125 lines). The CLI uses Commander.js for command parsing and better-sqlite3 for database operations.
+This codebase consistently uses neverthrow's `Result<T, E>` type for error handling:
+
+- **No try/catch blocks**: All fallible operations wrapped in `Result.fromThrowable()`
+- **Chaining with andThen**: Sequential operations that depend on previous results
+- **Error transformation with mapErr**: Convert errors to appropriate types
+- **Explicit error handling**: Every Result is checked with `.isOk()` or `.isErr()`
+
+Example pattern:
+```typescript
+return readFile(filePath)
+  .mapErr((err) => ({ type: "read_error", reason: err.reason }))
+  .andThen((content) => parseFrontMatter(content))
+  .andThen((body) => normalizePath(filePath, root).map((path) => ({ path, body })));
+```
+
+### Runtime Schema Validation with Valibot
+
+Database query results are validated at runtime using Valibot schemas defined in `src/db/schemas.ts`:
+
+- `PageRowSchema`: Validates document retrieval results
+- `SearchResultRowSchema`: Validates search query results
+- Type inference: `type PageRow = v.InferOutput<typeof PageRowSchema>`
+- neverthrow integration: `parsePageRow()` returns `Result<PageRow, Error>`
+
+### FTS5 Query Sanitization
+
+User search queries are sanitized before execution to prevent syntax errors:
+
+- Automatically quotes queries with special characters (hyphens, asterisks, etc.)
+- Preserves advanced FTS5 syntax (AND, OR, NOT, NEAR operators)
+- Preserves already-quoted phrases
+- Implementation: `src/db/sanitizeFts5Query.ts`
 
 ### Database Schema
-- Single `docs.db` file at `$XDG_DATA_HOME/mydocs/docs.db` (override with `MYDOCS_DB` env var)
-- FTS5 virtual table: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
-- WAL mode enabled for concurrency
-- Supports multiple projects in a single database
-- Auxiliary tables auto-created by FTS5: `pages_content`, `pages_data`, `pages_idx`, `pages_docsize`, `pages_config`
 
-### Command Functions
-- `cmdIndex()`: Indexes Markdown files with transactional batch processing
-- `cmdSearch()`: Full-text search with BM25 scoring, returns JSON with snippets
-- `cmdDocs()`: Retrieves raw Markdown content by path
+```sql
+CREATE VIRTUAL TABLE pages USING fts5(
+  path UNINDEXED,      -- Relative path from indexing root
+  project UNINDEXED,   -- Project name for filtering
+  title,               -- First # heading (searchable)
+  body,                -- Markdown content without front-matter (searchable)
+  tokenize='porter'    -- Porter stemming for English
+);
+```
 
-### Indexing Process
-1. Use fast-glob to find Markdown files matching pattern (returns absolute paths)
-2. Read each file and parse with gray-matter to remove YAML/TOML front-matter
-3. Extract first `# Heading` as title using regex
-4. Normalize paths:
-   - Resolve symlinks with `fs.realpathSync()`
-   - Calculate path relative to indexing root directory
-   - Format as `/`-prefixed path (e.g., `/guide/intro.md`)
-5. Delete existing entry (if any) by path and project, then insert - makes indexing idempotent
-6. All operations in a single transaction for atomicity
+- **Multi-project support**: Single database stores multiple projects
+- **WAL mode**: Enabled for better concurrency
+- **BM25 ranking**: Lower scores = better match
+- **Snippet generation**: `snippet()` function with `<b>...</b>` highlighting
 
-### Path Storage and XDG Base Directory
-Paths are stored relative to the indexing root directory:
-- Uses XDG Base Directory specification: `$XDG_DATA_HOME/mydocs`
-- Falls back to `$HOME/.local/share/mydocs` if `XDG_DATA_HOME` is not set
-- Database stored at `$XDG_DATA_HOME/mydocs/docs.db`
-- Documentation organized under `$XDG_DATA_HOME/mydocs/docs/`
-- Supports symlinks (resolved via `fs.realpathSync()`)
-- Paths normalized to `/`-prefixed relative format (e.g., `/guide/intro.md`)
-- Multiple projects can be organized under `docs/` subdirectory
-- Project name stored separately in `project` column for filtering
+### Path Normalization
 
-### Search Features
-- Porter stemming: `run` matches `running`, `runs`, `ran`
-- FTS5 query syntax: AND/OR/NOT, phrases with quotes, prefix search with `*`, NEAR operator
-- Snippet highlighting: `<b>...</b>` tags around matches
-- BM25 scoring for relevance ranking (lower scores = better match)
+- Paths stored relative to indexing root directory
+- Format: `/`-prefixed, `/`-separated (e.g., `/guide/intro.md`)
+- Symlinks resolved with `fs.realpathSync()` for consistency
+- XDG Base Directory: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
+- Database location: `$XDG_DATA_HOME/mydocs/docs.db` (override with `MYDOCS_DB` env var)
 
-## Output Formats
+### Front-matter Parsing
 
-- `index`: Logs to stderr (file count with project name, absolute paths, completion)
-- `search`: JSON array to stdout with `{path, project, title, snippet, score}`, stable key order
-- `docs`: Raw Markdown to stdout (front-matter removed), exits 1 if not found
+Supports YAML, TOML, and JSON front-matter:
+
+- YAML: `---` delimiters (standard)
+- TOML: `+++` delimiters (standard) or `---` with `language: 'toml'` (Supabase-style)
+- JSON: `;;;` delimiters
+- Two TOML engines: `toml` (default) or `smol-toml` (via `--toml-engine` option)
+- Front-matter stripped before indexing but title extracted post-stripping
+
+### Indexing Process (cmdIndex)
+
+1. Open database with `openDb()` → `Result<Database, DbError>`
+2. Find files with fast-glob (returns absolute paths)
+3. Process each file with `processFile()`:
+   - Read file → `Result<string, ReadFileError>`
+   - Parse front-matter → `Result<string, Error>`
+   - Extract title from first `# heading`
+   - Normalize path → `Result<string, NormalizePathError>`
+4. Execute in transaction with error handling:
+   - Delete existing entry (idempotent)
+   - Insert new entry
+   - Transaction wrapped in `Result.fromThrowable()` for safety
+
+### Search Process (cmdSearch)
+
+1. Open database with `openDb()`
+2. Sanitize query with `sanitizeFts5Query()` to prevent syntax errors
+3. Build SQL with project filters and limit
+4. Execute query wrapped in `Result.fromThrowable()` for error handling
+5. Validate results with Valibot `parseSearchResultRows()`
+6. Output JSON to stdout
 
 ## Key Dependencies
 
-- `better-sqlite3`: Native SQLite bindings (requires compilation)
-- `commander`: CLI argument parsing
-- `fast-glob`: Fast file matching with glob patterns
-- `gray-matter`: YAML/TOML front-matter parsing
+- **neverthrow** (8.2.0): Type-safe error handling with Result types
+- **valibot** (1.1.0): Lightweight runtime schema validation (~600 bytes)
+- **better-sqlite3** (12.4.1): Native SQLite bindings with FTS5 support
+- **commander** (14.0.2): CLI argument parsing
+- **fast-glob** (3.3.3): Fast file matching with glob patterns
+- **gray-matter** (4.0.3): Front-matter parsing (YAML/TOML/JSON)
+- **toml** (3.0.0): TOML parser (default)
+- **smol-toml** (1.4.2): Alternative lightweight TOML parser
 
-## Important Implementation Details
+## Testing
 
-- `openDb()` ensures WAL mode and creates FTS5 table on every invocation (idempotent)
-- Indexing uses prepared statements + transaction for performance
-- Paths are stored relative to indexing root directory
-- Symlinks are resolved with `fs.realpathSync()` for consistent path handling
-- Multiple projects can coexist in one database with `project` column filtering
-- Recommended structure: `$XDG_DATA_HOME/mydocs/docs/{project-name}/` or use symlinks
-- Front-matter is stripped from indexed body but title extraction happens post-stripping
-- Exit codes: 0 for success, 1 for not found (docs command)
-- Database location: `$XDG_DATA_HOME/mydocs/docs.db` by default, configurable via `MYDOCS_DB` environment variable
+- **Framework**: Vitest with @vitest/ui
+- **Coverage**: 76 tests covering all utility functions
+- **Co-location**: Test files next to source files (e.g., `readFile.test.ts`)
+- **Testing philosophy**: Test utilities and error cases, commands are integration-tested manually
+
+Run a single test file:
+```bash
+pnpm test src/indexer/readFile.test.ts
+```
+
+## Code Style and Patterns
+
+### Inevitable Code Principles
+
+This codebase follows "Inevitable Code" principles (scored 10/10 by ts-coder agent):
+
+1. **Minimal decision points**: Clear, obvious paths forward
+2. **Errors are explicit**: Result types make error handling unavoidable
+3. **Functions over classes**: Pure functions with composition
+4. **Railway Oriented Programming**: Linear flow via andThen/mapErr chains
+5. **Type-safe at boundaries**: Runtime validation with Valibot at system edges
+
+### Common Patterns
+
+**Error handling**:
+```typescript
+const result = fallibleOperation();
+if (result.isErr()) {
+  console.error(`Error: ${result.error.message}`);
+  process.exit(1);
+}
+const value = result.value;
+```
+
+**Discriminated unions for errors**:
+```typescript
+type MyError =
+  | { type: "not_found"; path: string }
+  | { type: "parse_error"; reason: string };
+```
+
+**Valibot schema validation**:
+```typescript
+const result = parseMySchema(unknownData);
+if (result.isErr()) {
+  // Handle validation error
+}
+const validData = result.value; // Type-safe!
+```
+
+## Important Notes
+
+- All package versions use exact pinning (no `^` or `~`) via `.npmrc` `save-exact=true`
+- Exit codes: 0 for success, 1 for errors
+- Indexing is idempotent: re-indexing same path updates the entry
+- All output uses stable JSON key order for testing
+- `index` logs to stderr, `search` and `docs` output to stdout
+- Porter stemming: `run` matches `running`, `runs`, `ran`
+- FTS5 query syntax: AND/OR/NOT, phrases with `"quotes"`, prefix with `*`, NEAR operator
