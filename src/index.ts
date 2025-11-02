@@ -35,18 +35,12 @@ function openDb() {
   return db;
 }
 
-function cmdDocs(p: string, project?: string) {
+function cmdDocs(p: string, project: string) {
   const db = openDb();
-  let row: { body: string } | undefined;
-
-  if (project) {
-    row = db.prepare("SELECT body FROM pages WHERE path = ? AND project = ?").get(p, project) as { body: string } | undefined;
-  } else {
-    row = db.prepare("SELECT body FROM pages WHERE path = ? LIMIT 1").get(p) as { body: string } | undefined;
-  }
+  const row = db.prepare("SELECT body FROM pages WHERE path = ? AND project = ?").get(p, project) as { body: string } | undefined;
 
   if (!row) {
-    console.error(`Not found: ${p}${project ? ` in project: ${project}` : ""}`);
+    console.error(`Not found: ${p} in project: ${project}`);
     process.exit(1);
   }
   process.stdout.write(row.body);
@@ -175,7 +169,7 @@ program
 program
   .command("docs")
   .argument("<path>", "logical path, e.g. /guide/intro.md")
-  .option("-p, --project <name>", "filter by project")
+  .requiredOption("-p, --project <name>", "project name")
   .action((path, opts) => cmdDocs(path, opts.project));
 
 function collectProjects(value: string, previous: string[] = []) {
