@@ -6,6 +6,7 @@ import path from "node:path";
 import { homedir } from "node:os";
 import fg from "fast-glob";
 import matter from "gray-matter";
+import toml from "toml";
 
 function getDataHome(): string {
   const xdgDataHome = process.env.XDG_DATA_HOME;
@@ -123,24 +124,38 @@ function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
 
   // Process in transaction
   const indexAll = db.transaction(() => {
+    let indexed = 0;
+    let skipped = 0;
     for (const filePath of files) {
-      const content = fs.readFileSync(filePath, "utf-8");
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
 
-      // Parse and remove front-matter
-      const { content: body } = matter(content);
+        // Parse and remove front-matter (supports YAML, TOML, JSON)
+        const { content: body } = matter(content, {
+          engines: {
+            toml: toml.parse.bind(toml),
+          },
+        });
 
-      // Extract title from first heading
-      const title = extractTitle(body);
+        // Extract title from first heading
+        const title = extractTitle(body);
 
-      // Normalize path
-      const normalizedPath = normalizePath(filePath, absoluteRoot);
+        // Normalize path
+        const normalizedPath = normalizePath(filePath, absoluteRoot);
 
-      // Delete existing entry (if any) and insert new one
-      deleteStmt.run(normalizedPath, project);
-      insertStmt.run(normalizedPath, project, title, body);
+        // Delete existing entry (if any) and insert new one
+        deleteStmt.run(normalizedPath, project);
+        insertStmt.run(normalizedPath, project, title, body);
 
-      console.error(`Indexed: ${normalizedPath}`);
+        console.error(`Indexed: ${normalizedPath}`);
+        indexed++;
+      } catch (error) {
+        skipped++;
+        const normalizedPath = normalizePath(filePath, absoluteRoot);
+        console.error(`Skipped (parse error): ${normalizedPath}`);
+      }
     }
+    console.error(`\nIndexed: ${indexed} files, Skipped: ${skipped} files`);
   });
 
   indexAll();
