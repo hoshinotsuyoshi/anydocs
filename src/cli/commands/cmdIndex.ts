@@ -4,7 +4,7 @@ import fg from "fast-glob";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
-import { type TomlEngine, parseFrontMatter } from "../../indexer/parseFrontMatter.js";
+import { parseFrontMatter, type TomlEngine } from "../../indexer/parseFrontMatter.js";
 
 export function cmdIndex(
   rootDir: string,

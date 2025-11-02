@@ -1,5 +1,5 @@
 import matter from "gray-matter";
-import { Result, err, ok } from "neverthrow";
+import { ok, Result } from "neverthrow";
 import { parse as smolTomlParse } from "smol-toml";
 import toml from "toml";
 
