@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { Command } from "commander";
-import Database from "better-sqlite3";
 import fs from "node:fs";
-import path from "node:path";
 import { homedir } from "node:os";
+import path from "node:path";
+import Database from "better-sqlite3";
+import { Command } from "commander";
 import fg from "fast-glob";
 import matter from "gray-matter";
 import toml from "toml";
@@ -17,7 +17,7 @@ function getDataHome(): string {
 }
 
 const MYDOCS_ROOT = path.join(getDataHome(), "mydocs");
-const MYDOCS_DOCS = path.join(MYDOCS_ROOT, "docs");
+const _MYDOCS_DOCS = path.join(MYDOCS_ROOT, "docs");
 const DB_PATH = process.env.MYDOCS_DB ?? path.join(MYDOCS_ROOT, "docs.db");
 
 function openDb() {
@@ -37,7 +37,9 @@ function openDb() {
 
 function cmdDocs(p: string, project: string) {
   const db = openDb();
-  const row = db.prepare("SELECT body FROM pages WHERE path = ? AND project = ?").get(p, project) as { body: string } | undefined;
+  const row = db.prepare("SELECT body FROM pages WHERE path = ? AND project = ?").get(p, project) as
+    | { body: string }
+    | undefined;
 
   if (!row) {
     console.error(`Not found: ${p} in project: ${project}`);
@@ -95,7 +97,7 @@ function normalizePath(filePath: string, rootDir: string): string {
 
   // Return path relative to the indexing root
   const rel = path.relative(realRootDir, realFilePath);
-  const normalized = "/" + rel.split(path.sep).join("/");
+  const normalized = `/${rel.split(path.sep).join("/")}`;
   return normalized;
 }
 
@@ -114,7 +116,9 @@ function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
 
   // Prepare statements
   const deleteStmt = db.prepare("DELETE FROM pages WHERE path = ? AND project = ?");
-  const insertStmt = db.prepare("INSERT INTO pages (path, project, title, body) VALUES (?, ?, ?, ?)");
+  const insertStmt = db.prepare(
+    "INSERT INTO pages (path, project, title, body) VALUES (?, ?, ?, ?)",
+  );
 
   // Process in transaction
   const indexAll = db.transaction(() => {
@@ -143,7 +147,7 @@ function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
 
         console.error(`Indexed: ${normalizedPath}`);
         indexed++;
-      } catch (error) {
+      } catch (_error) {
         skipped++;
         const normalizedPath = normalizePath(filePath, absoluteRoot);
         console.error(`Skipped (parse error): ${normalizedPath}`);
@@ -180,7 +184,12 @@ program
   .command("search")
   .argument("<query>", "FTS5 search query")
   .option("-n, --limit <num>", "max results", "10")
-  .option("-p, --project <name>", "filter by project (can be specified multiple times)", collectProjects, [])
+  .option(
+    "-p, --project <name>",
+    "filter by project (can be specified multiple times)",
+    collectProjects,
+    [],
+  )
   .action((query, opts) => cmdSearch(query, opts.project, Number(opts.limit)));
 
 program.parse();
