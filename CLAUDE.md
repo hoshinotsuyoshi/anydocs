@@ -28,17 +28,18 @@ node dist/index.js
 
 ```bash
 # Index Markdown files (--project is required)
+# Paths should be under $XDG_DATA_HOME/mydocs (or $HOME/.local/share/mydocs)
 node dist/index.js index <root-dir> [glob-pattern] --project <name>
-node dist/index.js index ./docs --project myproject                    # default: **/*.md
-node dist/index.js index ./docs "guides/**/*.md" --project myproject   # custom pattern
+node dist/index.js index ~/.local/share/mydocs/nextjs --project nextjs                    # default: **/*.md
+node dist/index.js index ~/.local/share/mydocs/nextjs "**/*.{md,mdx}" --project nextjs   # custom pattern
 
 # Search indexed documents
 node dist/index.js search "query" [-n limit] [--project <name>]
 node dist/index.js search "hello AND world" -n 5                       # all projects
 node dist/index.js search "query" --project nextjs --project react     # specific projects
 
-# Retrieve specific document (use absolute path)
-node dist/index.js docs /absolute/path/to/doc.md [--project <name>]
+# Retrieve specific document (use path relative to indexed root)
+node dist/index.js docs /path/from/root.md [--project <name>]
 ```
 
 ## Architecture
@@ -62,15 +63,20 @@ All code is in `src/index.ts` (125 lines). The CLI uses Commander.js for command
 1. Use fast-glob to find Markdown files matching pattern (returns absolute paths)
 2. Read each file and parse with gray-matter to remove YAML/TOML front-matter
 3. Extract first `# Heading` as title using regex
-4. Store absolute file paths as-is (e.g., `/Users/user/docs/guide/intro.md`)
+4. Normalize paths:
+   - Resolve symlinks with `fs.realpathSync()`
+   - Calculate path relative to indexing root directory
+   - Format as `/`-prefixed path (e.g., `/guide/intro.md`)
 5. Delete existing entry (if any) by path and project, then insert - makes indexing idempotent
 6. All operations in a single transaction for atomicity
 
-### Path Storage
-Paths are stored as absolute paths:
-- Full absolute path from the filesystem (e.g., `/Users/user/docs/api.md`)
-- No normalization or relativization applied
-- Enables multiple projects with same-named files without conflicts
+### Path Storage and XDG Base Directory
+Paths are stored relative to the indexing root directory:
+- Uses XDG Base Directory specification: `$XDG_DATA_HOME/mydocs`
+- Falls back to `$HOME/.local/share/mydocs` if `XDG_DATA_HOME` is not set
+- Supports symlinks (resolved via `fs.realpathSync()`)
+- Paths normalized to `/`-prefixed relative format (e.g., `/guide/intro.md`)
+- Multiple projects can be organized under `$XDG_DATA_HOME/mydocs/`
 - Project name stored separately in `project` column for filtering
 
 ### Search Features
@@ -96,8 +102,10 @@ Paths are stored as absolute paths:
 
 - `openDb()` ensures WAL mode and creates FTS5 table on every invocation (idempotent)
 - Indexing uses prepared statements + transaction for performance
-- Paths are stored as absolute paths (no relativization)
+- Paths are stored relative to indexing root directory
+- Symlinks are resolved with `fs.realpathSync()` for consistent path handling
 - Multiple projects can coexist in one database with `project` column filtering
+- Recommended structure: `$XDG_DATA_HOME/mydocs/{project-name}/` or use symlinks
 - Front-matter is stripped from indexed body but title extraction happens post-stripping
 - Exit codes: 0 for success, 1 for not found (docs command)
 - Database location: CWD by default, configurable via `MYDOCS_DB` environment variable

@@ -3,9 +3,19 @@ import { Command } from "commander";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { homedir } from "node:os";
 import fg from "fast-glob";
 import matter from "gray-matter";
 
+function getDataHome(): string {
+  const xdgDataHome = process.env.XDG_DATA_HOME;
+  if (xdgDataHome) {
+    return xdgDataHome;
+  }
+  return path.join(homedir(), ".local", "share");
+}
+
+const MYDOCS_ROOT = path.join(getDataHome(), "mydocs");
 const DB_PATH = process.env.MYDOCS_DB ?? path.resolve(process.cwd(), "docs.db");
 
 function openDb() {
@@ -81,8 +91,16 @@ function extractTitle(content: string): string {
 }
 
 function normalizePath(filePath: string, rootDir: string): string {
-  // Return absolute path as-is (already absolute from fast-glob)
-  return filePath;
+  // Get real path (resolves symlinks) for the file
+  const realFilePath = fs.realpathSync(filePath);
+
+  // Get real path for rootDir (the directory being indexed)
+  const realRootDir = fs.realpathSync(rootDir);
+
+  // Return path relative to the indexing root
+  const rel = path.relative(realRootDir, realFilePath);
+  const normalized = "/" + rel.split(path.sep).join("/");
+  return normalized;
 }
 
 function cmdIndex(rootDir: string, project: string, pattern = "**/*.md") {
