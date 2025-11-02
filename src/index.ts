@@ -4,6 +4,7 @@ import { collectProjects } from "./cli/collectProjects.js";
 import { cmdDocs } from "./cli/commands/cmdDocs.js";
 import { cmdIndex } from "./cli/commands/cmdIndex.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
+import { cmdGenerateSetup } from "./cli/commands/cmdGenerateSetup.js";
 
 const program = new Command();
 program.name("mydocs").description("Docs & search CLI using SQLite FTS5");
@@ -40,5 +41,11 @@ program
     const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
     cmdSearch(query, opts.project, limit);
   });
+
+program
+  .command("generate-setup")
+  .argument("<config>", "path to config file (YAML/TOML/JSON)")
+  .description("Generate shell script for setting up projects from config")
+  .action((config) => cmdGenerateSetup(config));
 
 program.parse();

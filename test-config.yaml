@@ -1,0 +1,11 @@
+- repo-list:
+  - name: neverthrow
+    repo: supermacro/neverthrow
+    ref: "de73e225d76bddadec1f2e1c86ec91996f8087a9"
+    path: "README.md"
+  - name: valibot
+    repo: fabian-hiller/valibot
+    ref: "3833d69d3b3a383693000410d40f1b504f446170"
+    sparse-checkout:
+      paths: "website/src/routes/guides"
+    path: "website/src/routes/guides/**/*.{md,mdx}"
