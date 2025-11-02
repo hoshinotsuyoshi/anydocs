@@ -1,0 +1,56 @@
+name: ghalint
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**/*.yml'
+      - '.github/workflows/**/*.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+  ghalint:
+    needs: [setup-job]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Download and verify ghalint
+        run: |
+          GHALINT_VERSION="1.5.3"
+          curl -L -o ghalint.tar.gz "https://github.com/suzuki-shunsuke/ghalint/releases/download/v${GHALINT_VERSION}/ghalint_${GHALINT_VERSION}_linux_amd64.tar.gz"
+
+          # Verify checksum
+          hash=$(sha256sum ghalint.tar.gz | awk '{ print $1 }')
+          expected_hash="5fd6696e6f736750b60a67f0c7f7e43642bda15348d55d261c4d386940a1c02f"
+
+          if [ "$hash" = "$expected_hash" ]; then
+            tar -xzf ghalint.tar.gz
+            chmod +x ghalint
+            sudo mv ghalint /usr/local/bin/
+          else
+            echo "Checksum verification failed!"
+            echo "Expected: $expected_hash"
+            echo "Got: $hash"
+            exit 1
+          fi
+
+      - name: Run ghalint
+        run: ghalint run
