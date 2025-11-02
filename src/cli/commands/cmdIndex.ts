@@ -1,10 +1,64 @@
 import path from "node:path";
 import fg from "fast-glob";
+import type { Result } from "neverthrow";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
 import { parseFrontMatter, type TomlEngine } from "../../indexer/parseFrontMatter.js";
 import { readFile } from "../../indexer/readFile.js";
+
+interface IndexEntry {
+  path: string;
+  title: string;
+  body: string;
+}
+
+type ProcessFileError =
+  | { type: "read_error"; displayPath: string; reason: string }
+  | { type: "parse_error"; displayPath: string; reason: string }
+  | { type: "normalize_error"; filePath: string; reason: string };
+
+function processFile(
+  filePath: string,
+  absoluteRoot: string,
+  tomlEngine: TomlEngine,
+): Result<IndexEntry, ProcessFileError> {
+  return readFile(filePath)
+    .mapErr((err) => {
+      const pathResult = normalizePath(filePath, absoluteRoot);
+      const displayPath = pathResult.isOk() ? pathResult.value : filePath;
+      return {
+        type: "read_error" as const,
+        displayPath,
+        reason: err.reason,
+      };
+    })
+    .andThen((content) =>
+      parseFrontMatter(content, tomlEngine).mapErr((err) => {
+        const pathResult = normalizePath(filePath, absoluteRoot);
+        const displayPath = pathResult.isOk() ? pathResult.value : filePath;
+        return {
+          type: "parse_error" as const,
+          displayPath,
+          reason: err.message,
+        };
+      }),
+    )
+    .andThen((body) => {
+      const title = extractTitle(body);
+      return normalizePath(filePath, absoluteRoot)
+        .mapErr((err) => ({
+          type: "normalize_error" as const,
+          filePath,
+          reason: err.reason,
+        }))
+        .map((normalizedPath) => ({
+          path: normalizedPath,
+          title,
+          body,
+        }));
+    });
+}
 
 export function cmdIndex(
   rootDir: string,
@@ -42,43 +96,28 @@ export function cmdIndex(
   const indexAll = db.transaction(() => {
     let indexed = 0;
     let skipped = 0;
+
     for (const filePath of files) {
-      const contentResult = readFile(filePath);
+      const result = processFile(filePath, absoluteRoot, tomlEngine);
 
-      if (contentResult.isErr()) {
+      if (result.isErr()) {
         skipped++;
-        const normalizedPath = normalizePath(filePath, absoluteRoot);
-        console.error(`Skipped (read error): ${normalizedPath} - ${contentResult.error.reason}`);
+        const error = result.error;
+        if (error.type === "read_error" || error.type === "parse_error") {
+          console.error(`Skipped (${error.type}): ${error.displayPath} - ${error.reason}`);
+        } else {
+          console.error(`Skipped (${error.type}): ${error.filePath} - ${error.reason}`);
+        }
         continue;
       }
 
-      const content = contentResult.value;
-
-      // Parse and remove front-matter (supports YAML, TOML, JSON)
-      const parseResult = parseFrontMatter(content, tomlEngine);
-
-      if (parseResult.isErr()) {
-        skipped++;
-        const normalizedPath = normalizePath(filePath, absoluteRoot);
-        console.error(`Skipped (parse error): ${normalizedPath} - ${parseResult.error.message}`);
-        continue;
-      }
-
-      const body = parseResult.value;
-
-      // Extract title from first heading
-      const title = extractTitle(body);
-
-      // Normalize path
-      const normalizedPath = normalizePath(filePath, absoluteRoot);
-
-      // Delete existing entry (if any) and insert new one
-      deleteStmt.run(normalizedPath, project);
-      insertStmt.run(normalizedPath, project, title, body);
-
-      console.error(`Indexed: ${normalizedPath}`);
+      const entry = result.value;
+      deleteStmt.run(entry.path, project);
+      insertStmt.run(entry.path, project, entry.title, entry.body);
+      console.error(`Indexed: ${entry.path}`);
       indexed++;
     }
+
     console.error(`\nIndexed: ${indexed} files, Skipped: ${skipped} files`);
   });
 

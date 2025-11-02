@@ -27,7 +27,10 @@ describe("normalizePath", () => {
 
   it("should normalize absolute path to root-relative path", () => {
     const result = normalizePath(testFile, tempDir);
-    expect(result).toBe("/test.md");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBe("/test.md");
+    }
   });
 
   it("should handle nested directories", () => {
@@ -37,7 +40,10 @@ describe("normalizePath", () => {
     fs.writeFileSync(nestedFile, "# Nested");
 
     const result = normalizePath(nestedFile, tempDir);
-    expect(result).toBe("/nested/nested.md");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBe("/nested/nested.md");
+    }
 
     // Clean up
     fs.unlinkSync(nestedFile);
@@ -49,7 +55,10 @@ describe("normalizePath", () => {
     fs.symlinkSync(testFile, symlinkPath);
 
     const result = normalizePath(symlinkPath, tempDir);
-    expect(result).toBe("/test.md");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBe("/test.md");
+    }
 
     // Clean up
     fs.unlinkSync(symlinkPath);
@@ -62,11 +71,36 @@ describe("normalizePath", () => {
     fs.writeFileSync(deepFile, "# Deep");
 
     const result = normalizePath(deepFile, tempDir);
-    expect(result).toBe("/a/b/deep.md");
-    expect(result).not.toContain("\\");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBe("/a/b/deep.md");
+      expect(result.value).not.toContain("\\");
+    }
 
     // Clean up
     fs.unlinkSync(deepFile);
     fs.rmSync(path.join(tempDir, "a"), { recursive: true });
+  });
+
+  it("should return error for non-existent file", () => {
+    const nonExistent = path.join(tempDir, "does-not-exist.md");
+    const result = normalizePath(nonExistent, tempDir);
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.filePath).toBe(nonExistent);
+      expect(result.error.rootDir).toBe(tempDir);
+      expect(result.error.reason).toContain("ENOENT");
+    }
+  });
+
+  it("should return error for non-existent root directory", () => {
+    const nonExistentRoot = path.join(tempDir, "no-such-dir");
+    const result = normalizePath(testFile, nonExistentRoot);
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.filePath).toBe(testFile);
+      expect(result.error.rootDir).toBe(nonExistentRoot);
+      expect(result.error.reason).toContain("ENOENT");
+    }
   });
 });

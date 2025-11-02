@@ -1,15 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Result as R, type Result } from "neverthrow";
 
-export function normalizePath(filePath: string, rootDir: string): string {
-  // Get real path (resolves symlinks) for the file
-  const realFilePath = fs.realpathSync(filePath);
+export type NormalizePathError = {
+  filePath: string;
+  rootDir: string;
+  reason: string;
+};
 
-  // Get real path for rootDir (the directory being indexed)
-  const realRootDir = fs.realpathSync(rootDir);
+export function normalizePath(
+  filePath: string,
+  rootDir: string,
+): Result<string, NormalizePathError> {
+  const resolveReal = R.fromThrowable(
+    () => ({
+      realFile: fs.realpathSync(filePath),
+      realRoot: fs.realpathSync(rootDir),
+    }),
+    (error) => ({
+      filePath,
+      rootDir,
+      reason: String(error),
+    }),
+  )();
 
-  // Return path relative to the indexing root
-  const rel = path.relative(realRootDir, realFilePath);
-  const normalized = `/${rel.split(path.sep).join("/")}`;
-  return normalized;
+  return resolveReal.map(({ realFile, realRoot }) => {
+    const rel = path.relative(realRoot, realFile);
+    return `/${rel.split(path.sep).join("/")}`;
+  });
 }
