@@ -1,10 +1,10 @@
-import fs from "node:fs";
 import path from "node:path";
 import fg from "fast-glob";
 import { openDb } from "../../db/openDb.js";
 import { extractTitle } from "../../indexer/extractTitle.js";
 import { normalizePath } from "../../indexer/normalizePath.js";
 import { parseFrontMatter, type TomlEngine } from "../../indexer/parseFrontMatter.js";
+import { readFile } from "../../indexer/readFile.js";
 
 export function cmdIndex(
   rootDir: string,
@@ -12,7 +12,15 @@ export function cmdIndex(
   pattern = "**/*.md",
   tomlEngine: TomlEngine = "toml",
 ) {
-  const db = openDb();
+  const dbResult = openDb();
+
+  if (dbResult.isErr()) {
+    const { type, reason } = dbResult.error;
+    console.error(`Database error (${type}): ${reason}`);
+    process.exit(1);
+  }
+
+  const db = dbResult.value;
   const absoluteRoot = path.resolve(rootDir);
 
   // Find all markdown files
@@ -35,7 +43,16 @@ export function cmdIndex(
     let indexed = 0;
     let skipped = 0;
     for (const filePath of files) {
-      const content = fs.readFileSync(filePath, "utf-8");
+      const contentResult = readFile(filePath);
+
+      if (contentResult.isErr()) {
+        skipped++;
+        const normalizedPath = normalizePath(filePath, absoluteRoot);
+        console.error(`Skipped (read error): ${normalizedPath} - ${contentResult.error.reason}`);
+        continue;
+      }
+
+      const content = contentResult.value;
 
       // Parse and remove front-matter (supports YAML, TOML, JSON)
       const parseResult = parseFrontMatter(content, tomlEngine);

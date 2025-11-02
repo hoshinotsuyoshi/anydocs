@@ -1,7 +1,15 @@
 import { openDb } from "../../db/openDb.js";
 
 export function cmdSearch(query: string, projects: string[] = [], limit = 10) {
-  const db = openDb();
+  const dbResult = openDb();
+
+  if (dbResult.isErr()) {
+    const { type, reason } = dbResult.error;
+    console.error(`Database error (${type}): ${reason}`);
+    process.exit(1);
+  }
+
+  const db = dbResult.value;
 
   let sql: string;
   let params: (string | number)[];
