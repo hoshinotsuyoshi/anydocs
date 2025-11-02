@@ -26,6 +26,10 @@
   ],
   "author": "hoshinotsuyoshi",
   "license": "MIT",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
