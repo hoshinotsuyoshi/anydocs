@@ -1,4 +1,5 @@
 import { openDb } from "../../db/openDb.js";
+import { parseSearchResultRows } from "../../db/schemas.js";
 
 export function cmdSearch(query: string, projects: string[] = [], limit = 10) {
   const dbResult = openDb();
@@ -40,5 +41,13 @@ export function cmdSearch(query: string, projects: string[] = [], limit = 10) {
   }
 
   const rows = db.prepare(sql).all(...params);
-  process.stdout.write(JSON.stringify(rows, null, 2));
+
+  const parseResult = parseSearchResultRows(rows);
+
+  if (parseResult.isErr()) {
+    console.error(`Invalid search results: ${parseResult.error.message}`);
+    process.exit(1);
+  }
+
+  process.stdout.write(JSON.stringify(parseResult.value, null, 2));
 }
