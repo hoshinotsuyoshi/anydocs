@@ -10,27 +10,25 @@ pnpm install
 pnpm run build
 ```
 
-## Download Test Documentation (Next.js)
+## Setup Documentation Directory
 
 ```bash
+# Create mydocs directory structure
+mkdir -p ~/.local/share/mydocs/docs
+
 # Clone Next.js repository (shallow clone)
 git clone --depth 1 https://github.com/vercel/next.js.git /tmp/nextjs-clone
 
-# Copy documentation to test-docs
-mv /tmp/nextjs-clone/docs test-docs
-
-# Clean up
-rm -rf /tmp/nextjs-clone
+# Create symlink to Next.js docs
+ln -sfn /tmp/nextjs-clone/docs ~/.local/share/mydocs/docs/nextjs
 ```
 
 ## Index the Documentation
 
 ```bash
-# Remove old database
-rm -f docs.db*
-
 # Index all Markdown and MDX files
-node dist/index.js index test-docs "**/*.{md,mdx}" --project nextjs
+# Database will be created at ~/.local/share/mydocs/docs.db
+node dist/index.js index ~/.local/share/mydocs/docs/nextjs "**/*.{md,mdx}" --project nextjs
 ```
 
 **Output:**
@@ -177,12 +175,16 @@ Route Handlers can be nested anywhere inside the `app` directory, similar to `pa
 ## Database Inspection
 
 ```bash
+# Database location
+ls -lh ~/.local/share/mydocs/docs.db
+# Output: -rw-r--r--  1 user  staff   3.6M Nov  2 13:56 docs.db
+
 # Count total documents
-sqlite3 docs.db "SELECT COUNT(*) as total_docs FROM pages;"
+sqlite3 ~/.local/share/mydocs/docs.db "SELECT COUNT(*) as total_docs FROM pages;"
 # Output: 374
 
 # Show largest documents
-sqlite3 docs.db "SELECT path, LENGTH(body) as size FROM pages ORDER BY size DESC LIMIT 5;"
+sqlite3 ~/.local/share/mydocs/docs.db "SELECT path, LENGTH(body) as size FROM pages ORDER BY size DESC LIMIT 5;"
 # Output:
 # /01-app/03-api-reference/02-components/image.mdx|57234
 # /01-app/02-guides/authentication.mdx|54081
@@ -194,29 +196,35 @@ sqlite3 docs.db "SELECT path, LENGTH(body) as size FROM pages ORDER BY size DESC
 ## Directory Structure
 
 ```
-test-docs/
-├── 01-app/
-│   ├── 01-getting-started/
-│   ├── 02-guides/
-│   └── 03-api-reference/
-├── 02-pages/
-│   ├── 01-getting-started/
-│   ├── 02-guides/
-│   ├── 03-building-your-application/
-│   └── 04-api-reference/
-├── 03-architecture/
-├── 04-community/
-└── app/
-    └── api-reference/
+~/.local/share/mydocs/
+├── docs.db                           # SQLite database
+└── docs/                             # Documentation root
+    └── nextjs/                       # Symlink to /tmp/nextjs-clone/docs
+        ├── 01-app/
+        │   ├── 01-getting-started/
+        │   ├── 02-guides/
+        │   └── 03-api-reference/
+        ├── 02-pages/
+        │   ├── 01-getting-started/
+        │   ├── 02-guides/
+        │   ├── 03-building-your-application/
+        │   └── 04-api-reference/
+        ├── 03-architecture/
+        ├── 04-community/
+        └── app/
+            └── api-reference/
 ```
 
 ## Features Demonstrated
 
+- ✅ XDG Base Directory compliance (`~/.local/share/mydocs/`)
+- ✅ Symlink support for flexible organization
+- ✅ Multi-project support with `--project` flag
 - ✅ Recursive directory scanning (4-5 levels deep)
 - ✅ Multiple file extensions (.md and .mdx)
 - ✅ Large-scale indexing (374 files)
 - ✅ Complex search queries (AND, OR, NOT)
-- ✅ Path normalization (`/01-app/...`)
+- ✅ Path normalization relative to indexed root
 - ✅ Front-matter removal
 - ✅ Full-text search with BM25 ranking
 - ✅ Porter stemming (run ≈ running)
