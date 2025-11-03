@@ -2,10 +2,10 @@ import fs from "node:fs";
 import { CONFIG_HOME, CONFIG_PATH, DB_DIR, DOCS_DIR, REPOS_DIR } from "../../config/paths.js";
 
 /**
- * Initialize mydocs directory structure and config file
+ * Initialize anydocs directory structure and config file
  */
 export function cmdInit() {
-  console.error("Initializing mydocs...");
+  console.error("Initializing anydocs...");
 
   // Create config directory
   if (!fs.existsSync(CONFIG_HOME)) {
@@ -45,5 +45,5 @@ export function cmdInit() {
   console.error("\nInitialization complete!");
   console.error("\nNext steps:");
   console.error(`  1. Edit your config: ${CONFIG_PATH}`);
-  console.error("  2. Run: mydocs install");
+  console.error("  2. Run: anydocs install");
 }

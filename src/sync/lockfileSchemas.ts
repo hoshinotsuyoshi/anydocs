@@ -2,7 +2,7 @@ import { err, ok, type Result } from "neverthrow";
 import * as v from "valibot";
 
 /**
- * Schema for mydocs-lock.yaml (auto-generated)
+ * Schema for anydocs-lock.yaml (auto-generated)
  */
 export const LockedProjectSchema = v.object({
   name: v.string(),
@@ -22,14 +22,14 @@ export type LockedProject = v.InferOutput<typeof LockedProjectSchema>;
 export type Lockfile = v.InferOutput<typeof LockfileSchema>;
 
 /**
- * Parse mydocs-lock.yaml
+ * Parse anydocs-lock.yaml
  */
 export function parseLockfile(data: unknown): Result<Lockfile, Error> {
   try {
     const validated = v.parse(LockfileSchema, data);
     return ok(validated);
   } catch (error) {
-    return err(new Error(`Invalid mydocs-lock.yaml: ${error}`));
+    return err(new Error(`Invalid anydocs-lock.yaml: ${error}`));
   }
 }
 

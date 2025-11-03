@@ -35,10 +35,10 @@ pnpm run format        # Format code
 ## CLI Usage
 
 ```bash
-# Initialize mydocs (creates directory structure and config)
+# Initialize anydocs (creates directory structure and config)
 node dist/index.js init
 
-# Configure projects in ~/.config/mydocs/mydocs.json
+# Configure projects in ~/.config/anydocs/anydocs.json
 # Example minimal config (only repo is required):
 # {
 #   "projects": [
@@ -92,8 +92,8 @@ src/
 │       ├── cmdSearch.ts       # Search command with sanitization
 │       └── cmdDocs.ts         # Docs retrieval command
 ├── sync/
-│   ├── configSchemas.ts       # mydocs.json schema and normalization
-│   ├── lockfileSchemas.ts     # mydocs-lock.yaml schema
+│   ├── configSchemas.ts       # anydocs.json schema and normalization
+│   ├── lockfileSchemas.ts     # anydocs-lock.yaml schema
 │   ├── lockfileOperations.ts  # Read/write/update lockfile
 │   ├── gitOperations.ts       # Git clone and ref resolution
 │   └── parseRepoUrl.ts        # Parse owner/repo or host/owner/repo
@@ -167,11 +167,11 @@ CREATE VIRTUAL TABLE pages USING fts5(
 ### Directory Structure
 
 ```
-$XDG_CONFIG_HOME/mydocs/         (or $HOME/.config/mydocs/)
-└── mydocs.json                  # User-editable config
+$XDG_CONFIG_HOME/anydocs/         (or $HOME/.config/anydocs/)
+└── anydocs.json                  # User-editable config
 
-$XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
-├── mydocs-lock.yaml             # Auto-generated lockfile
+$XDG_DATA_HOME/anydocs/           (or $HOME/.local/share/anydocs/)
+├── anydocs-lock.yaml             # Auto-generated lockfile
 ├── db/
 │   └── default.db               # Main database
 ├── repos/                       # Cloned repositories (ghq-style)
@@ -187,13 +187,13 @@ $XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
 
 ### Configuration and Lockfile
 
-**Config file** (`~/.config/mydocs/mydocs.json`):
+**Config file** (`~/.config/anydocs/anydocs.json`):
 - User-editable project list
 - Only `repo` field is required
 - Defaults: `name` (from repo), `ref` (default branch), `path` (`**/*.{md,mdx}`)
 - Supports ghq-style paths: `owner/repo` (implies GitHub) or `host/owner/repo`
 
-**Lockfile** (`~/.local/share/mydocs/mydocs-lock.yaml`):
+**Lockfile** (`~/.local/share/anydocs/anydocs-lock.yaml`):
 - Auto-generated, tracks installed state
 - Fields: `name`, `repo` (full path), `ref-requested`, `ref-resolved` (commit hash), `cloned-at`, `indexed-at`
 - Always uses full path format (e.g., `github.com/owner/repo`)
@@ -203,10 +203,10 @@ $XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
 - Paths stored relative to indexing root directory
 - Format: `/`-prefixed, `/`-separated (e.g., `/guide/intro.md`)
 - Symlinks resolved with `fs.realpathSync()` for consistency
-- Config: `$XDG_CONFIG_HOME/mydocs` or `$HOME/.config/mydocs`
-- Data: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
-- Database: `$XDG_DATA_HOME/mydocs/db/default.db`
-- Repositories: `$XDG_DATA_HOME/mydocs/repos/host/owner/repo` (ghq-style)
+- Config: `$XDG_CONFIG_HOME/anydocs` or `$HOME/.config/anydocs`
+- Data: `$XDG_DATA_HOME/anydocs` or `$HOME/.local/share/anydocs`
+- Database: `$XDG_DATA_HOME/anydocs/db/default.db`
+- Repositories: `$XDG_DATA_HOME/anydocs/repos/host/owner/repo` (ghq-style)
 
 ### Front-matter Parsing
 
@@ -220,7 +220,7 @@ Supports YAML, TOML, and JSON front-matter:
 
 ### Install Process (cmdInstall)
 
-1. Read and parse `mydocs.json` config with Valibot validation
+1. Read and parse `anydocs.json` config with Valibot validation
 2. Normalize all projects (apply defaults for `name`, `ref`, `path`)
 3. Filter projects if `--project` flag specified
 4. Read existing lockfile (or create empty one)
@@ -326,8 +326,8 @@ const validData = result.value; // Type-safe!
 
 - All package versions use exact pinning (no `^` or `~`) via `.npmrc` `save-exact=true`
 - Exit codes: 0 for success, 1 for errors
-- **Config file**: `~/.config/mydocs/mydocs.json` (user-editable, only `repo` required)
-- **Lockfile**: `~/.local/share/mydocs/mydocs-lock.yaml` (auto-generated, do not edit)
+- **Config file**: `~/.config/anydocs/anydocs.json` (user-editable, only `repo` required)
+- **Lockfile**: `~/.local/share/anydocs/anydocs-lock.yaml` (auto-generated, do not edit)
 - **Repository format**: `owner/repo` (implies GitHub) or `host/owner/repo` (explicit host)
 - **Default branch detection**: Automatic via `git symbolic-ref` when `ref` not specified
 - Install is idempotent: re-running updates existing installations

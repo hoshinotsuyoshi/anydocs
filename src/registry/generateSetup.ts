@@ -20,13 +20,13 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
 
   // Variables
   const homeDir = os.homedir();
-  const mydocsRoot = path.join(homeDir, ".local/share/mydocs");
-  const repoRoot = path.join(mydocsRoot, "repos");
+  const anydocsRoot = path.join(homeDir, ".local/share/anydocs");
+  const repoRoot = path.join(anydocsRoot, "repos");
 
   lines.push("# Configuration");
-  lines.push(`MYDOCS_DOCS_DIR="${mydocsRoot}/docs"`);
+  lines.push(`ANYDOCS_DOCS_DIR="${anydocsRoot}/docs"`);
   lines.push(`REPO_ROOT="${repoRoot}"`);
-  lines.push(`MYDOCS_CLI="\${MYDOCS_CLI:-mydocs}"`);
+  lines.push(`ANYDOCS_CLI="\${ANYDOCS_CLI:-anydocs}"`);
   lines.push("");
 
   // Generate setup for each project
@@ -90,7 +90,7 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
     lines.push("fi");
     lines.push("");
 
-    // Run mydocs index (return to original directory first)
+    // Run anydocs index (return to original directory first)
     const indexCmd = buildIndexCommand(project, symlinkPath);
     lines.push(`cd "$ORIGINAL_DIR"`);
     lines.push(`echo "  Indexing ${project.name}..."`);
@@ -104,11 +104,11 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
 }
 
 /**
- * Build mydocs index command with options
+ * Build anydocs index command with options
  */
 function buildIndexCommand(project: ProjectConfig, symlinkPath: string): string {
   const parts = [
-    "$MYDOCS_CLI",
+    "$ANYDOCS_CLI",
     "index",
     symlinkPath,
     `"${project.path}"`,

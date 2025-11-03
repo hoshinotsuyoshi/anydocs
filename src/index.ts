@@ -8,11 +8,11 @@ import { cmdInstall } from "./cli/commands/cmdInstall.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
 
 const program = new Command();
-program.name("mydocs").description("Docs & search CLI using SQLite FTS5");
+program.name("anydocs").description("Docs & search CLI using SQLite FTS5");
 
 program
   .command("init")
-  .description("Initialize mydocs (create config and data directories)")
+  .description("Initialize anydocs (create config and data directories)")
   .action(() => cmdInit());
 
 program
@@ -45,7 +45,7 @@ program
 
 program
   .command("install")
-  .argument("[config]", "path to mydocs.json (default: ~/.config/mydocs/mydocs.json)")
+  .argument("[config]", "path to anydocs.json (default: ~/.config/anydocs/anydocs.json)")
   .option("-p, --project <name>", "filter by project name")
   .description("Install projects from config (clone + index + generate lockfile)")
   .action((config, opts) => cmdInstall(config, opts.project));

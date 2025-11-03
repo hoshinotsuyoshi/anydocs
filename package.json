@@ -1,11 +1,11 @@
 {
-  "name": "mydocs",
+  "name": "anydocs",
   "version": "0.1.0",
   "description": "Documentation search CLI using SQLite FTS5 full-text search with Porter stemming and BM25 ranking",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mydocs": "dist/index.js"
+    "anydocs": "dist/index.js"
   },
   "files": [
     "dist/",
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hoshinotsuyoshi/mydocs.git"
+    "url": "https://github.com/hoshinotsuyoshi/anydocs.git"
   },
   "keywords": [
     "documentation",

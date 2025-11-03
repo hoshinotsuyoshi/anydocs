@@ -10,7 +10,7 @@ describe("normalizePath", () => {
 
   beforeEach(() => {
     // Create temporary directory and file for testing
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mydocs-test-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "anydocs-test-"));
     testFile = path.join(tempDir, "test.md");
     fs.writeFileSync(testFile, "# Test");
   });

@@ -6,7 +6,7 @@ describe("readFile", () => {
     const result = readFile("README.md");
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
-      expect(result.value).toContain("mydocs");
+      expect(result.value).toContain("anydocs");
     }
   });
 

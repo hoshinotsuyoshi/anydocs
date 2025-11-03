@@ -4,7 +4,7 @@ import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
 import { CONFIG_PATH, DOCS_DIR, LOCKFILE_PATH, REPOS_DIR } from "../../config/paths.js";
 import type { NormalizedProjectConfig } from "../../sync/configSchemas.js";
-import { normalizeProjectConfig, parseMydocsConfig } from "../../sync/configSchemas.js";
+import { normalizeProjectConfig, parseAnydocsConfig } from "../../sync/configSchemas.js";
 import { cloneRepository } from "../../sync/gitOperations.js";
 import { readLockfile, updateLockedProject, writeLockfile } from "../../sync/lockfileOperations.js";
 import type { LockedProject, Lockfile } from "../../sync/lockfileSchemas.js";
@@ -95,12 +95,12 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
 
   const actualConfigPath = configPath || CONFIG_PATH;
 
-  // Read mydocs.json
+  // Read anydocs.json
   const configResult = R.fromThrowable(
     () => {
       const content = fs.readFileSync(actualConfigPath, "utf8");
       const data = yaml.load(content);
-      const parseResult = parseMydocsConfig(data);
+      const parseResult = parseAnydocsConfig(data);
       if (parseResult.isErr()) {
         throw parseResult.error;
       }

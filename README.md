@@ -1,4 +1,4 @@
-# mydocs
+# anydocs
 
 Markdown documentation search CLI using SQLite FTS5 full-text search.
 
@@ -24,11 +24,11 @@ pnpm run build
 pnpm install
 pnpm run build
 
-# 2. Initialize mydocs
+# 2. Initialize anydocs
 node dist/index.js init
 
-# 3. Edit config file at ~/.config/mydocs/mydocs.json
-cat > ~/.config/mydocs/mydocs.json << 'EOF'
+# 3. Edit config file at ~/.config/anydocs/anydocs.json
+cat > ~/.config/anydocs/anydocs.json << 'EOF'
 {
   "projects": [
     { "repo": "vercel/next.js" }
@@ -50,7 +50,7 @@ node dist/index.js docs /docs/app/getting-started.md --project next.js
 
 ### Configure Projects
 
-Edit `~/.config/mydocs/mydocs.json` to define projects:
+Edit `~/.config/anydocs/anydocs.json` to define projects:
 
 ```json
 {
@@ -88,10 +88,10 @@ node dist/index.js install --project next.js
 ```
 
 **What install does:**
-- Clones repositories to `~/.local/share/mydocs/repos/host/owner/repo`
-- Creates symlinks under `~/.local/share/mydocs/docs/`
+- Clones repositories to `~/.local/share/anydocs/repos/host/owner/repo`
+- Creates symlinks under `~/.local/share/anydocs/docs/`
 - Indexes Markdown files matching the glob pattern
-- Updates lockfile at `~/.local/share/mydocs/mydocs-lock.yaml`
+- Updates lockfile at `~/.local/share/anydocs/anydocs-lock.yaml`
 - Idempotent: re-running updates existing installations
 
 ### Search Documents
@@ -136,11 +136,11 @@ Output is the original Markdown with front-matter removed.
 ### Complete Example
 
 ```bash
-# Initialize mydocs
+# Initialize anydocs
 node dist/index.js init
 
 # Configure projects
-cat > ~/.config/mydocs/mydocs.json << 'EOF'
+cat > ~/.config/anydocs/anydocs.json << 'EOF'
 {
   "projects": [
     { "repo": "vercel/next.js" },
@@ -167,11 +167,11 @@ node dist/index.js install
 
 ## Architecture
 
-- **Config**: `~/.config/mydocs/mydocs.json` (user-editable project list)
-- **Lockfile**: `~/.local/share/mydocs/mydocs-lock.yaml` (auto-generated)
-- **Repositories**: `~/.local/share/mydocs/repos/host/owner/repo`
-- **Symlinks**: `~/.local/share/mydocs/docs/project-name`
-- **Database**: `~/.local/share/mydocs/db/default.db` (SQLite FTS5)
+- **Config**: `~/.config/anydocs/anydocs.json` (user-editable project list)
+- **Lockfile**: `~/.local/share/anydocs/anydocs-lock.yaml` (auto-generated)
+- **Repositories**: `~/.local/share/anydocs/repos/host/owner/repo`
+- **Symlinks**: `~/.local/share/anydocs/docs/project-name`
+- **Database**: `~/.local/share/anydocs/db/default.db` (SQLite FTS5)
 - **Schema**: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
 - **Output**:
   - `docs`: Raw Markdown to stdout
@@ -193,10 +193,10 @@ node dist/index.js install
 - [x] Make indexing idempotent (replace existing paths)
 - [x] Add transactional batch indexing
 - [x] Add `init` command for directory setup
-- [x] Add `install` command with mydocs.json config
+- [x] Add `install` command with anydocs.json config
 - [x] Support ghq-style repository paths (owner/repo or host/owner/repo)
 - [x] Auto-detect repository default branch
-- [x] Generate lockfile (mydocs-lock.yaml)
+- [x] Generate lockfile (anydocs-lock.yaml)
 - [ ] Support differential re-indexing with mtime tracking
 - [ ] Implement `export-llms` command for llms.txt generation
 - [ ] Add CLI package installation (npm/pnpm global install)
@@ -204,12 +204,12 @@ node dist/index.js install
 
 ## Specification
 
-1. **Configuration**: `~/.config/mydocs/mydocs.json` defines projects with minimal required fields
+1. **Configuration**: `~/.config/anydocs/anydocs.json` defines projects with minimal required fields
 2. **Repository format**: Supports `owner/repo` (implies GitHub) or `host/owner/repo`
 3. **Default values**: Only `repo` required; `name`, `ref`, `path` have smart defaults
-4. **Lockfile**: Auto-generated `mydocs-lock.yaml` tracks cloned refs and timestamps
-5. **Storage**: Repositories at `$XDG_DATA_HOME/mydocs/repos/host/owner/repo`
-6. **Database**: Single FTS5 database at `$XDG_DATA_HOME/mydocs/db/default.db`
+4. **Lockfile**: Auto-generated `anydocs-lock.yaml` tracks cloned refs and timestamps
+5. **Storage**: Repositories at `$XDG_DATA_HOME/anydocs/repos/host/owner/repo`
+6. **Database**: Single FTS5 database at `$XDG_DATA_HOME/anydocs/db/default.db`
 7. **Schema**: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
 8. **Commands**:
    - `init`: Create directory structure and empty config

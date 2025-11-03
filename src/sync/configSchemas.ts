@@ -2,7 +2,7 @@ import { err, ok, type Result } from "neverthrow";
 import * as v from "valibot";
 
 /**
- * Schema for mydocs.json (user-editable config)
+ * Schema for anydocs.json (user-editable config)
  * Only 'repo' is required, other fields have defaults
  */
 export const ProjectConfigSchema = v.object({
@@ -14,12 +14,12 @@ export const ProjectConfigSchema = v.object({
   options: v.optional(v.array(v.string())), // CLI options
 });
 
-export const MydocsConfigSchema = v.object({
+export const AnydocsConfigSchema = v.object({
   projects: v.array(ProjectConfigSchema),
 });
 
 export type ProjectConfig = v.InferOutput<typeof ProjectConfigSchema>;
-export type MydocsConfig = v.InferOutput<typeof MydocsConfigSchema>;
+export type AnydocsConfig = v.InferOutput<typeof AnydocsConfigSchema>;
 
 /**
  * Normalized project config with all defaults applied
@@ -34,14 +34,14 @@ export interface NormalizedProjectConfig {
 }
 
 /**
- * Parse mydocs.json config
+ * Parse anydocs.json config
  */
-export function parseMydocsConfig(data: unknown): Result<MydocsConfig, Error> {
+export function parseAnydocsConfig(data: unknown): Result<AnydocsConfig, Error> {
   try {
-    const validated = v.parse(MydocsConfigSchema, data);
+    const validated = v.parse(AnydocsConfigSchema, data);
     return ok(validated);
   } catch (error) {
-    return err(new Error(`Invalid mydocs.json: ${error}`));
+    return err(new Error(`Invalid anydocs.json: ${error}`));
   }
 }
 
