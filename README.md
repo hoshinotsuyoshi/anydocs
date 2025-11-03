@@ -227,14 +227,30 @@ node dist/index.js install
 ## Development
 
 ```bash
-# Dev mode with tsx
-pnpm run dev
+# Install dependencies
+pnpm install
 
-# Build TypeScript
+# Build TypeScript to JavaScript
 pnpm run build
 
+# Run tests
+pnpm test:run          # Run all tests once
+pnpm test              # Run tests in watch mode
+pnpm test:ui           # Open Vitest UI
+
+# Linting and formatting
+pnpm run lint          # Check code
+pnpm run lint:fix      # Auto-fix issues
+pnpm run format        # Format code
+
+# Development with tsx (no build needed)
+pnpm run dev init
+pnpm run dev install
+pnpm run dev search "query"
+
 # Run built CLI
-pnpm start
+node dist/index.js init
+node dist/index.js search "query"
 ```
 
 ## Database Schema
