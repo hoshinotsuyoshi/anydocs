@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { collectProjects } from "./cli/collectProjects.js";
 import { cmdDocs } from "./cli/commands/cmdDocs.js";
@@ -6,8 +7,12 @@ import { cmdInit } from "./cli/commands/cmdInit.js";
 import { cmdInstall } from "./cli/commands/cmdInstall.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
 
+// Read version from package.json
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
+
 const program = new Command();
-program.name("anydocs").description("Docs & search CLI using SQLite FTS5");
+program.name("anydocs").description("Docs & search CLI using SQLite FTS5").version(version);
 
 program
   .command("init")
