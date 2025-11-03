@@ -32,6 +32,11 @@
       "ref": "3833d69d3b3a383693000410d40f1b504f446170",
       "sparse-checkout": ["website/src/routes/guides"],
       "path": "website/src/routes/guides/**/*.{md,mdx}"
+    },
+    {
+      "repo": "webpro-nl/knip",
+      "sparse-checkout": ["packages/docs/src/content/docs"],
+      "path": "packages/docs/src/content/docs/**/*.{md,mdx}"
     }
   ]
 }
