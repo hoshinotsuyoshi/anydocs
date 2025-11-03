@@ -9,3 +9,13 @@
     sparse-checkout:
       paths: "website/src/routes/guides"
     path: "website/src/routes/guides/**/*.{md,mdx}"
+  - name: next.js
+    repo: vercel/next.js
+    ref: "138c9ae62a78f699570b04be0c6132a4ad9606a8"
+    sparse-checkout:
+      paths: "docs"
+    path: "docs/**/*.{md,mdx}"
+    path-meta:
+      options:
+        - "--toml-engine"
+        - "smol-toml"
