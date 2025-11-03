@@ -5,7 +5,7 @@ import type { ProjectConfig } from "./schemas.js";
 /**
  * Generate shell script for setting up projects from config
  */
-export function generateSetupScript(projects: ProjectConfig[]): string {
+export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string): string {
   const lines: string[] = [];
 
   // Shebang and error handling
@@ -16,11 +16,15 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
   // Variables
   const homeDir = os.homedir();
   const mydocsRoot = path.join(homeDir, ".local/share/mydocs");
-  const repoRoot = path.join(homeDir, ".local/share/go/src/github.com");
+
+  // Priority: env var > config > default
+  const defaultRepoRoot = path.join(mydocsRoot, "repos");
+  const effectiveRepoRoot = repoRoot || defaultRepoRoot;
 
   lines.push(`# Configuration`);
   lines.push(`MYDOCS_DOCS_DIR="${mydocsRoot}/docs"`);
-  lines.push(`REPO_ROOT="${repoRoot}"`);
+  lines.push(`REPO_ROOT="\${MYDOCS_REPO_ROOT:-${effectiveRepoRoot}}"`);
+  lines.push(`MYDOCS_CLI="\${MYDOCS_CLI:-mydocs}"`);
   lines.push("");
 
   // Generate setup for each project
@@ -99,7 +103,7 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
  * Build mydocs index command with options
  */
 function buildIndexCommand(project: ProjectConfig, symlinkPath: string): string {
-  const parts = ["mydocs", "index", symlinkPath, `"${project.path}"`, `--project ${project.name}`];
+  const parts = ["$MYDOCS_CLI", "index", symlinkPath, `"${project.path}"`, `--project ${project.name}`];
 
   // Add options from path-meta
   if (project["path-meta"]?.options) {

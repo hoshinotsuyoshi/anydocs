@@ -35,11 +35,11 @@ export function cmdGenerateSetup(configPath: string) {
     process.exit(1);
   }
 
-  const projects = validationResult.value;
+  const { projects, repoRoot } = validationResult.value;
 
   // Generate shell script
   const scriptResult = R.fromThrowable(
-    () => generateSetupScript(projects),
+    () => generateSetupScript(projects, repoRoot),
     (error) => new Error(`Failed to generate script: ${error}`),
   )();
 
