@@ -10,7 +10,12 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
 
   // Shebang and error handling
   lines.push("#!/bin/bash");
-  lines.push("set -euo pipefail");
+  lines.push("set -euxo pipefail");
+  lines.push("");
+
+  // Save original directory for relative path resolution
+  lines.push("# Save original directory");
+  lines.push('ORIGINAL_DIR="$(pwd)"');
   lines.push("");
 
   // Variables
@@ -88,8 +93,9 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
     lines.push("fi");
     lines.push("");
 
-    // Run mydocs index
+    // Run mydocs index (return to original directory first)
     const indexCmd = buildIndexCommand(project, symlinkPath);
+    lines.push(`cd "$ORIGINAL_DIR"`);
     lines.push(`echo "  Indexing ${project.name}..."`);
     lines.push(`${indexCmd}`);
     lines.push("");
