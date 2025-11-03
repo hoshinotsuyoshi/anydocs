@@ -149,7 +149,7 @@ $XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
 - Format: `/`-prefixed, `/`-separated (e.g., `/guide/intro.md`)
 - Symlinks resolved with `fs.realpathSync()` for consistency
 - XDG Base Directory: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
-- Database location: `$XDG_DATA_HOME/mydocs/db/default.db` (override with `MYDOCS_DB` env var)
+- Database location: `$XDG_DATA_HOME/mydocs/db/default.db`
 
 ### Front-matter Parsing
 

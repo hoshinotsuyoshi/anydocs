@@ -111,14 +111,6 @@ node dist/index.js docs /guide/intro.md
 
 Output is the original Markdown with front-matter removed.
 
-### Environment Variables
-
-```bash
-# Use custom database location
-export MYDOCS_DB=/path/to/custom.db
-node dist/index.js index ./docs
-```
-
 ### Complete Example
 
 ```bash
@@ -140,7 +132,7 @@ node dist/index.js index ./my-docs
 
 ## Architecture
 
-- **Database**: Single `docs.db` file (override with `MYDOCS_DB` environment variable)
+- **Database**: Single `db/default.db` file at `$XDG_DATA_HOME/mydocs/db/default.db`
 - **Schema**: `pages(path UNINDEXED, title, body) USING fts5(tokenize='porter')`
 - **Output**:
   - `docs`: Raw Markdown to stdout
@@ -169,7 +161,7 @@ node dist/index.js index ./my-docs
 ## Specification
 
 1. Index Markdown documents with SQLite FTS5 (Porter tokenizer)
-2. Store in single `docs.db` file (configurable via `MYDOCS_DB`)
+2. Store in single `db/default.db` file at `$XDG_DATA_HOME/mydocs/db/default.db`
 3. Schema: `pages(path UNINDEXED, title, body) USING fts5(tokenize='porter')`
 4. `index <root> [pattern]`: Index Markdown files (default `**/*.md`)
 5. Strip front-matter, extract first `# ...` as title
