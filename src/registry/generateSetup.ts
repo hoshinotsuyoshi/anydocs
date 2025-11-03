@@ -79,9 +79,9 @@ export function generateSetupScript(projects: ProjectConfig[]): string {
     lines.push("");
 
     // Create symlink
-    const symlinkPath = `\${MYDOCS_DOCS_DIR}/${repoName}`;
+    const symlinkPath = `\${ANYDOCS_DOCS_DIR}/${repoName}`;
     // biome-ignore lint/suspicious/noTemplateCurlyInString: Shell script variable
-    lines.push("mkdir -p ${MYDOCS_DOCS_DIR}");
+    lines.push("mkdir -p ${ANYDOCS_DOCS_DIR}");
     lines.push(`if [ ! -L "${symlinkPath}" ]; then`);
     lines.push(`  ln -sf ${repoPath} ${symlinkPath}`);
     lines.push(`  echo "  Created symlink: ${symlinkPath}"`);
