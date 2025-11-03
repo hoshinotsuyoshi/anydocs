@@ -1,10 +1,37 @@
 {
   "projects": [
     {
+      "name": "supabase",
+      "repo": "supabase/supabase",
+      "ref": "315a39d1819ceac0373053b86a0abd77fefad156",
+      "sparse-checkout": ["apps/docs"],
+      "path": "apps/docs/**/*.{md,mdx}",
+      "options": ["--toml-engine", "smol-toml"]
+    },
+    {
+      "name": "next.js",
+      "repo": "vercel/next.js",
+      "ref": "138c9ae62a78f699570b04be0c6132a4ad9606a8",
+      "sparse-checkout": ["docs"],
+      "path": "docs/**/*.{md,mdx}"
+    },
+    {
       "name": "neverthrow",
       "repo": "supermacro/neverthrow",
       "ref": "de73e225d76bddadec1f2e1c86ec91996f8087a9",
       "path": "README.md"
+    },
+    {
+      "name": "neverthrow.wiki",
+      "repo": "supermacro/neverthrow.wiki",
+      "path": "./**/*.{md,mdx}"
+    },
+    {
+      "name": "valibot",
+      "repo": "fabian-hiller/valibot",
+      "ref": "3833d69d3b3a383693000410d40f1b504f446170",
+      "sparse-checkout": ["website/src/routes/guides"],
+      "path": "website/src/routes/guides/**/*.{md,mdx}"
     }
   ]
 }
