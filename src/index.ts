@@ -2,7 +2,6 @@
 import { Command } from "commander";
 import { collectProjects } from "./cli/collectProjects.js";
 import { cmdDocs } from "./cli/commands/cmdDocs.js";
-import { cmdGenerateSetup } from "./cli/commands/cmdGenerateSetup.js";
 import { cmdInit } from "./cli/commands/cmdInit.js";
 import { cmdInstall } from "./cli/commands/cmdInstall.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
@@ -36,12 +35,6 @@ program
     const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
     cmdSearch(query, opts.project, limit);
   });
-
-program
-  .command("generate-setup")
-  .argument("<config>", "path to config file (YAML/TOML/JSON)")
-  .description("Generate shell script for setting up projects from config")
-  .action((config) => cmdGenerateSetup(config));
 
 program
   .command("install")
