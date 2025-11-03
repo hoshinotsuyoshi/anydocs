@@ -5,7 +5,7 @@ import type { ProjectConfig } from "./schemas.js";
 /**
  * Generate shell script for setting up projects from config
  */
-export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string): string {
+export function generateSetupScript(projects: ProjectConfig[]): string {
   const lines: string[] = [];
 
   // Shebang and error handling
@@ -21,14 +21,11 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
   // Variables
   const homeDir = os.homedir();
   const mydocsRoot = path.join(homeDir, ".local/share/mydocs");
-
-  // Priority: env var > config > default
-  const defaultRepoRoot = path.join(mydocsRoot, "repos");
-  const effectiveRepoRoot = repoRoot || defaultRepoRoot;
+  const repoRoot = path.join(mydocsRoot, "repos");
 
   lines.push("# Configuration");
   lines.push(`MYDOCS_DOCS_DIR="${mydocsRoot}/docs"`);
-  lines.push(`REPO_ROOT="\${MYDOCS_REPO_ROOT:-${effectiveRepoRoot}}"`);
+  lines.push(`REPO_ROOT="${repoRoot}"`);
   lines.push(`MYDOCS_CLI="\${MYDOCS_CLI:-mydocs}"`);
   lines.push("");
 
