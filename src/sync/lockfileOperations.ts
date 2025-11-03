@@ -48,13 +48,6 @@ export function writeLockfile(lockfilePath: string, lockfile: Lockfile): Result<
 }
 
 /**
- * Find locked project by name
- */
-export function findLockedProject(lockfile: Lockfile, name: string): LockedProject | undefined {
-  return lockfile.projects.find((p) => p.name === name);
-}
-
-/**
  * Update or add locked project
  */
 export function updateLockedProject(lockfile: Lockfile, project: LockedProject): Lockfile {

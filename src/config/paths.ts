@@ -7,7 +7,7 @@ export const CONFIG_HOME = path.join(getConfigHome(), "anydocs");
 export const CONFIG_PATH = path.join(CONFIG_HOME, "anydocs.json");
 
 // Data paths
-export const ANYDOCS_ROOT = path.join(getDataHome(), "anydocs");
+const ANYDOCS_ROOT = path.join(getDataHome(), "anydocs");
 export const REPOS_DIR = path.join(ANYDOCS_ROOT, "repos");
 export const DOCS_DIR = path.join(ANYDOCS_ROOT, "docs");
 export const DB_DIR = path.join(ANYDOCS_ROOT, "db");
