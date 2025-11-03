@@ -35,21 +35,45 @@ pnpm run format        # Format code
 ## CLI Usage
 
 ```bash
-# Index Markdown files (--project is required)
-node dist/index.js index <root-dir> [glob-pattern] --project <name>
-node dist/index.js index ~/.local/share/mydocs/docs/nextjs --project nextjs
-node dist/index.js index ~/docs/react "**/*.{md,mdx}" --project react
+# Initialize mydocs (creates directory structure and config)
+node dist/index.js init
 
-# Optional: specify TOML parser engine (default: toml, alternative: smol-toml)
-node dist/index.js index ~/docs --project myproject --toml-engine smol-toml
+# Configure projects in ~/.config/mydocs/mydocs.json
+# Example minimal config (only repo is required):
+# {
+#   "projects": [
+#     { "repo": "vercel/next.js" },
+#     { "repo": "facebook/react" }
+#   ]
+# }
+#
+# Example with all options:
+# {
+#   "projects": [
+#     {
+#       "repo": "github.com/vuejs/core",
+#       "name": "vue3",
+#       "ref": "v3.4.0",
+#       "path": "packages/*/README.md",
+#       "sparse-checkout": ["packages/vue"],
+#       "options": ["--toml-engine", "smol-toml"]
+#     }
+#   ]
+# }
+
+# Install all projects (clone and index)
+node dist/index.js install
+
+# Install specific project only
+node dist/index.js install --project next.js
 
 # Search indexed documents
 node dist/index.js search "query" [-n limit] [--project <name>]
 node dist/index.js search "safeParse" -n 5
-node dist/index.js search "hello AND world" --project nextjs --project react
+node dist/index.js search "hello AND world" --project next.js --project react
 
-# Retrieve specific document (use path relative to indexed root)
-node dist/index.js docs /path/from/root.md --project <name>
+# Retrieve specific document
+node dist/index.js docs /path/from/root.md --project next.js
 ```
 
 ## Architecture Overview
@@ -62,9 +86,17 @@ src/
 ├── cli/
 │   ├── collectProjects.ts     # CLI option collector
 │   └── commands/
+│       ├── cmdInit.ts         # Init command (directory setup)
+│       ├── cmdInstall.ts      # Install command (clone + index)
 │       ├── cmdIndex.ts        # Index command with processFile()
 │       ├── cmdSearch.ts       # Search command with sanitization
 │       └── cmdDocs.ts         # Docs retrieval command
+├── sync/
+│   ├── configSchemas.ts       # mydocs.json schema and normalization
+│   ├── lockfileSchemas.ts     # mydocs-lock.yaml schema
+│   ├── lockfileOperations.ts  # Read/write/update lockfile
+│   ├── gitOperations.ts       # Git clone and ref resolution
+│   └── parseRepoUrl.ts        # Parse owner/repo or host/owner/repo
 ├── db/
 │   ├── openDb.ts              # Database initialization with Result
 │   ├── schemas.ts             # Valibot schemas for runtime validation
@@ -75,7 +107,8 @@ src/
 │   ├── extractTitle.ts        # Extract first # heading
 │   └── normalizePath.ts       # Path normalization with Result
 └── config/
-    ├── getDataHome.ts         # XDG Base Directory support
+    ├── getConfigHome.ts       # XDG_CONFIG_HOME support
+    ├── getDataHome.ts         # XDG_DATA_HOME support
     └── paths.ts               # Global path constants
 ```
 
@@ -134,22 +167,46 @@ CREATE VIRTUAL TABLE pages USING fts5(
 ### Directory Structure
 
 ```
+$XDG_CONFIG_HOME/mydocs/         (or $HOME/.config/mydocs/)
+└── mydocs.json                  # User-editable config
+
 $XDG_DATA_HOME/mydocs/           (or $HOME/.local/share/mydocs/)
+├── mydocs-lock.yaml             # Auto-generated lockfile
 ├── db/
 │   └── default.db               # Main database
-└── docs/                        # Documentation root (symlinks recommended)
-    ├── nextjs/                  # Project directories or symlinks
-    ├── react/
-    └── valibot/
+├── repos/                       # Cloned repositories (ghq-style)
+│   └── github.com/
+│       ├── vercel/
+│       │   └── next.js/
+│       └── facebook/
+│           └── react/
+└── docs/                        # Symlinks to repo docs
+    ├── next.js -> ../repos/github.com/vercel/next.js/docs
+    └── react -> ../repos/github.com/facebook/react/docs
 ```
+
+### Configuration and Lockfile
+
+**Config file** (`~/.config/mydocs/mydocs.json`):
+- User-editable project list
+- Only `repo` field is required
+- Defaults: `name` (from repo), `ref` (default branch), `path` (`**/*.{md,mdx}`)
+- Supports ghq-style paths: `owner/repo` (implies GitHub) or `host/owner/repo`
+
+**Lockfile** (`~/.local/share/mydocs/mydocs-lock.yaml`):
+- Auto-generated, tracks installed state
+- Fields: `name`, `repo` (full path), `ref-requested`, `ref-resolved` (commit hash), `cloned-at`, `indexed-at`
+- Always uses full path format (e.g., `github.com/owner/repo`)
 
 ### Path Normalization
 
 - Paths stored relative to indexing root directory
 - Format: `/`-prefixed, `/`-separated (e.g., `/guide/intro.md`)
 - Symlinks resolved with `fs.realpathSync()` for consistency
-- XDG Base Directory: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
-- Database location: `$XDG_DATA_HOME/mydocs/db/default.db`
+- Config: `$XDG_CONFIG_HOME/mydocs` or `$HOME/.config/mydocs`
+- Data: `$XDG_DATA_HOME/mydocs` or `$HOME/.local/share/mydocs`
+- Database: `$XDG_DATA_HOME/mydocs/db/default.db`
+- Repositories: `$XDG_DATA_HOME/mydocs/repos/host/owner/repo` (ghq-style)
 
 ### Front-matter Parsing
 
@@ -160,6 +217,23 @@ Supports YAML, TOML, and JSON front-matter:
 - JSON: `;;;` delimiters
 - Two TOML engines: `toml` (default) or `smol-toml` (via `--toml-engine` option)
 - Front-matter stripped before indexing but title extracted post-stripping
+
+### Install Process (cmdInstall)
+
+1. Read and parse `mydocs.json` config with Valibot validation
+2. Normalize all projects (apply defaults for `name`, `ref`, `path`)
+3. Filter projects if `--project` flag specified
+4. Read existing lockfile (or create empty one)
+5. **Clone/update phase** (`processCloning`):
+   - For each project: `cloneRepository()` → `Result<CloneResult, GitError>`
+   - Detect default branch if `ref` not specified: `git symbolic-ref refs/remotes/origin/HEAD`
+   - Update lockfile with `ref-requested` (branch name) and `ref-resolved` (commit hash)
+   - Create symlink: `docs/project-name -> repos/host/owner/repo`
+6. Write lockfile after cloning
+7. **Indexing phase** (`processIndexing`):
+   - For each project: call `cmdIndex()` internally
+   - Update `indexed-at` timestamp in lockfile
+8. Write final lockfile with timestamps
 
 ### Indexing Process (cmdIndex)
 
@@ -192,6 +266,7 @@ Supports YAML, TOML, and JSON front-matter:
 - **commander** (14.0.2): CLI argument parsing
 - **fast-glob** (3.3.3): Fast file matching with glob patterns
 - **gray-matter** (4.0.3): Front-matter parsing (YAML/TOML/JSON)
+- **js-yaml** (4.1.0): YAML parsing for config and lockfile
 - **toml** (3.0.0): TOML parser (default)
 - **smol-toml** (1.4.2): Alternative lightweight TOML parser
 
@@ -251,8 +326,13 @@ const validData = result.value; // Type-safe!
 
 - All package versions use exact pinning (no `^` or `~`) via `.npmrc` `save-exact=true`
 - Exit codes: 0 for success, 1 for errors
+- **Config file**: `~/.config/mydocs/mydocs.json` (user-editable, only `repo` required)
+- **Lockfile**: `~/.local/share/mydocs/mydocs-lock.yaml` (auto-generated, do not edit)
+- **Repository format**: `owner/repo` (implies GitHub) or `host/owner/repo` (explicit host)
+- **Default branch detection**: Automatic via `git symbolic-ref` when `ref` not specified
+- Install is idempotent: re-running updates existing installations
 - Indexing is idempotent: re-indexing same path updates the entry
 - All output uses stable JSON key order for testing
-- `index` logs to stderr, `search` and `docs` output to stdout
+- `init` and `install` log to stderr, `search` and `docs` output to stdout
 - Porter stemming: `run` matches `running`, `runs`, `ran`
 - FTS5 query syntax: AND/OR/NOT, phrases with `"quotes"`, prefix with `*`, NEAR operator

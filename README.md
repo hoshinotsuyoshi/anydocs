@@ -24,53 +24,75 @@ pnpm run build
 pnpm install
 pnpm run build
 
-# 2. Create a test directory with Markdown files
-mkdir -p docs/guide
-cat > docs/guide/intro.md << 'EOF'
----
-title: Introduction
-date: 2025-01-01
----
+# 2. Initialize mydocs
+node dist/index.js init
 
-# Getting Started
-
-Welcome to the documentation system!
+# 3. Edit config file at ~/.config/mydocs/mydocs.json
+cat > ~/.config/mydocs/mydocs.json << 'EOF'
+{
+  "projects": [
+    { "repo": "vercel/next.js" }
+  ]
+}
 EOF
 
-# 3. Index the documents
-node dist/index.js index docs
+# 4. Install (clone and index) projects
+node dist/index.js install
 
-# 4. Search for content
-node dist/index.js search "documentation"
+# 5. Search for content
+node dist/index.js search "routing" -n 5
 
-# 5. Retrieve a specific document
-node dist/index.js docs /guide/intro.md
+# 6. Retrieve a specific document
+node dist/index.js docs /docs/app/getting-started.md --project next.js
 ```
 
 ## Usage
 
-### Index Markdown Files
+### Configure Projects
 
-Index all Markdown files in a directory:
+Edit `~/.config/mydocs/mydocs.json` to define projects:
 
-```bash
-# Index with default pattern (**/*.md)
-node dist/index.js index ./docs
-
-# Index with custom glob pattern
-node dist/index.js index ./docs "**/*.{md,markdown}"
-
-# Index subdirectories only
-node dist/index.js index ./docs "guides/**/*.md"
+```json
+{
+  "projects": [
+    { "repo": "vercel/next.js" },
+    { "repo": "facebook/react" },
+    {
+      "repo": "github.com/vuejs/core",
+      "name": "vue3",
+      "ref": "v3.4.0",
+      "path": "packages/*/README.md"
+    }
+  ]
+}
 ```
 
-**What indexing does:**
-- Scans directory recursively for Markdown files
-- Removes YAML/TOML front-matter
-- Extracts first `# Heading` as title
-- Normalizes paths (relative from root, starting with `/`)
-- Stores in SQLite FTS5 for fast search
-- Idempotent: re-indexing same path updates the entry
+**Configuration fields:**
+- `repo` (required): Repository in `owner/repo` or `host/owner/repo` format
+- `name` (optional): Project name, defaults to repo name (e.g., "next.js")
+- `ref` (optional): Git branch or tag, defaults to repository's default branch
+- `path` (optional): Glob pattern for indexing, defaults to `**/*.{md,mdx}`
+- `sparse-checkout` (optional): Array of paths for sparse checkout
+- `options` (optional): Additional CLI options
+
+### Install Projects
+
+Install (clone and index) all configured projects:
+
+```bash
+# Install all projects
+node dist/index.js install
+
+# Install specific project only
+node dist/index.js install --project next.js
+```
+
+**What install does:**
+- Clones repositories to `~/.local/share/mydocs/repos/host/owner/repo`
+- Creates symlinks under `~/.local/share/mydocs/docs/`
+- Indexes Markdown files matching the glob pattern
+- Updates lockfile at `~/.local/share/mydocs/mydocs-lock.yaml`
+- Idempotent: re-running updates existing installations
 
 ### Search Documents
 
@@ -114,29 +136,46 @@ Output is the original Markdown with front-matter removed.
 ### Complete Example
 
 ```bash
-# Clean start
-rm -f docs.db*
+# Initialize mydocs
+node dist/index.js init
 
-# Index your documentation
-node dist/index.js index ./my-docs
+# Configure projects
+cat > ~/.config/mydocs/mydocs.json << 'EOF'
+{
+  "projects": [
+    { "repo": "vercel/next.js" },
+    { "repo": "facebook/react" }
+  ]
+}
+EOF
 
-# Search for keywords
-node dist/index.js search "installation" -n 3
+# Install all projects
+node dist/index.js install
+
+# Search across all projects
+node dist/index.js search "hooks" -n 5
+
+# Search specific project
+node dist/index.js search "routing" --project next.js
 
 # Get specific document
-node dist/index.js docs /getting-started.md
+node dist/index.js docs /docs/app/routing.md --project next.js
 
-# Re-index (updates existing entries)
-node dist/index.js index ./my-docs
+# Re-install (updates existing entries)
+node dist/index.js install
 ```
 
 ## Architecture
 
-- **Database**: Single `db/default.db` file at `$XDG_DATA_HOME/mydocs/db/default.db`
-- **Schema**: `pages(path UNINDEXED, title, body) USING fts5(tokenize='porter')`
+- **Config**: `~/.config/mydocs/mydocs.json` (user-editable project list)
+- **Lockfile**: `~/.local/share/mydocs/mydocs-lock.yaml` (auto-generated)
+- **Repositories**: `~/.local/share/mydocs/repos/host/owner/repo`
+- **Symlinks**: `~/.local/share/mydocs/docs/project-name`
+- **Database**: `~/.local/share/mydocs/db/default.db` (SQLite FTS5)
+- **Schema**: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
 - **Output**:
   - `docs`: Raw Markdown to stdout
-  - `search`: JSON array with `{path, title, snippet, score}`
+  - `search`: JSON array with `{path, project, title, snippet, score}`
 
 ## Search Features
 
@@ -153,6 +192,11 @@ node dist/index.js index ./my-docs
 - [x] Normalize paths (relative from root, starting with `/`)
 - [x] Make indexing idempotent (replace existing paths)
 - [x] Add transactional batch indexing
+- [x] Add `init` command for directory setup
+- [x] Add `install` command with mydocs.json config
+- [x] Support ghq-style repository paths (owner/repo or host/owner/repo)
+- [x] Auto-detect repository default branch
+- [x] Generate lockfile (mydocs-lock.yaml)
 - [ ] Support differential re-indexing with mtime tracking
 - [ ] Implement `export-llms` command for llms.txt generation
 - [ ] Add CLI package installation (npm/pnpm global install)
@@ -160,23 +204,25 @@ node dist/index.js index ./my-docs
 
 ## Specification
 
-1. Index Markdown documents with SQLite FTS5 (Porter tokenizer)
-2. Store in single `db/default.db` file at `$XDG_DATA_HOME/mydocs/db/default.db`
-3. Schema: `pages(path UNINDEXED, title, body) USING fts5(tokenize='porter')`
-4. `index <root> [pattern]`: Index Markdown files (default `**/*.md`)
-5. Strip front-matter, extract first `# ...` as title
-6. Idempotent indexing: same path replaces existing entry
-7. Path normalization: relative from root, `/`-separated, starts with `/`
-8. `docs <path>`: Output raw Markdown to stdout
-9. `search <query> [-n N]`: Output JSON array with path, title, snippet, score
-10. Search with `MATCH` clause + BM25 ranking, snippet with `<b>...</b>` (default 10 results)
-11. Porter stemming for English word forms
-12. FTS5 query syntax: AND/OR/NOT, phrases, NEAR, prefix `*`
-13. Error handling: `docs` exits non-zero if not found, `search` returns empty array
-14. Performance: Support differential re-indexing (future)
-15. Stable output: Fixed JSON key order for testing
-16. `export-llms`: Generate llms.txt/llms-full.txt (future)
-17. Runtime: Node.js with better-sqlite3, works with pnpm/Bun
+1. **Configuration**: `~/.config/mydocs/mydocs.json` defines projects with minimal required fields
+2. **Repository format**: Supports `owner/repo` (implies GitHub) or `host/owner/repo`
+3. **Default values**: Only `repo` required; `name`, `ref`, `path` have smart defaults
+4. **Lockfile**: Auto-generated `mydocs-lock.yaml` tracks cloned refs and timestamps
+5. **Storage**: Repositories at `$XDG_DATA_HOME/mydocs/repos/host/owner/repo`
+6. **Database**: Single FTS5 database at `$XDG_DATA_HOME/mydocs/db/default.db`
+7. **Schema**: `pages(path UNINDEXED, project UNINDEXED, title, body) USING fts5(tokenize='porter')`
+8. **Commands**:
+   - `init`: Create directory structure and empty config
+   - `install [--project name]`: Clone repos and index docs
+   - `search <query> [-n N] [--project name]`: Full-text search
+   - `docs <path> [--project name]`: Retrieve document
+9. **Indexing**: Strip front-matter, extract first `# ...` as title
+10. **Idempotent**: Re-running `install` updates existing installations
+11. **Path normalization**: Relative from repo root, `/`-separated, starts with `/`
+12. **Search**: BM25 ranking, Porter stemming, FTS5 syntax (AND/OR/NOT/NEAR/*)
+13. **Output**: JSON with fixed key order, snippets with `<b>...</b>` highlighting
+14. **Error handling**: Exit non-zero on errors, empty array for no results
+15. **Runtime**: Node.js with better-sqlite3, TypeScript, works with pnpm
 
 ## Development
 
