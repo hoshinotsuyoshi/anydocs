@@ -5,6 +5,7 @@ import { cmdDocs } from "./cli/commands/cmdDocs.js";
 import { cmdGenerateSetup } from "./cli/commands/cmdGenerateSetup.js";
 import { cmdIndex } from "./cli/commands/cmdIndex.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
+import { cmdSync } from "./cli/commands/cmdSync.js";
 
 const program = new Command();
 program.name("mydocs").description("Docs & search CLI using SQLite FTS5");
@@ -47,5 +48,11 @@ program
   .argument("<config>", "path to config file (YAML/TOML/JSON)")
   .description("Generate shell script for setting up projects from config")
   .action((config) => cmdGenerateSetup(config));
+
+program
+  .command("sync")
+  .argument("<config>", "path to mydocs.json")
+  .description("Sync projects from config (clone + index + generate lockfile)")
+  .action((config) => cmdSync(config));
 
 program.parse();
