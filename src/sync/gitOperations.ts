@@ -59,7 +59,6 @@ export function cloneRepository(
     }
 
     // Checkout specific ref if provided
-    const refRequested = project.ref || "main";
     if (project.ref) {
       execSync(`git checkout ${project.ref}`, {
         cwd: repoPath,

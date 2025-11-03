@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import yaml from "js-yaml";
 import { ok, Result as R, type Result } from "neverthrow";
-import { createEmptyLockfile, parseLockfile, type Lockfile, type LockedProject } from "./lockfileSchemas.js";
+import {
+  createEmptyLockfile,
+  type LockedProject,
+  type Lockfile,
+  parseLockfile,
+} from "./lockfileSchemas.js";
 
 /**
  * Read lockfile from disk

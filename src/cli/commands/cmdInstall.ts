@@ -1,17 +1,102 @@
 import fs from "node:fs";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
+import type { ProjectConfig } from "../../sync/configSchemas.js";
 import { parseMydocsConfig } from "../../sync/configSchemas.js";
 import { cloneRepository } from "../../sync/gitOperations.js";
-import {
-  readLockfile,
-  updateLockedProject,
-  writeLockfile,
-} from "../../sync/lockfileOperations.js";
-import type { LockedProject } from "../../sync/lockfileSchemas.js";
+import { readLockfile, updateLockedProject, writeLockfile } from "../../sync/lockfileOperations.js";
+import type { LockedProject, Lockfile } from "../../sync/lockfileSchemas.js";
 import { cmdIndex } from "./cmdIndex.js";
+
+/**
+ * Extract repository name from "owner/repo" format
+ */
+function getRepoName(repo: string): string {
+  const parts = repo.split("/");
+  if (parts.length !== 2 || !parts[1]) {
+    throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo"`);
+  }
+  return parts[1];
+}
+
+/**
+ * Process cloning/updating repositories
+ */
+function processCloning(
+  projects: ProjectConfig[],
+  repoRoot: string,
+  docsDir: string,
+  lockfile: Lockfile,
+): Lockfile {
+  let updatedLockfile = lockfile;
+
+  for (const project of projects) {
+    console.error(`\nProcessing ${project.name}...`);
+
+    const cloneResult = cloneRepository(project, repoRoot);
+    if (cloneResult.isErr()) {
+      console.error(`  Failed to clone: ${cloneResult.error.reason}`);
+      process.exit(1);
+    }
+
+    const { resolvedRef, clonedAt } = cloneResult.value;
+
+    // Update lockfile
+    const lockedProject: LockedProject = {
+      name: project.name,
+      repo: project.repo,
+      "ref-requested": project.ref || "main",
+      "ref-resolved": resolvedRef,
+      "cloned-at": clonedAt,
+      "indexed-at": null,
+    };
+
+    updatedLockfile = updateLockedProject(updatedLockfile, lockedProject);
+
+    // Create symlink
+    const repoName = getRepoName(project.repo);
+    const [owner] = project.repo.split("/");
+    const repoPath = path.join(repoRoot, owner, repoName);
+    const symlinkPath = path.join(docsDir, repoName);
+
+    fs.mkdirSync(docsDir, { recursive: true });
+    if (!fs.existsSync(symlinkPath)) {
+      fs.symlinkSync(repoPath, symlinkPath);
+      console.error(`  Created symlink: ${symlinkPath}`);
+    }
+  }
+
+  return updatedLockfile;
+}
+
+/**
+ * Process indexing projects
+ */
+function processIndexing(projects: ProjectConfig[], docsDir: string, lockfile: Lockfile): void {
+  for (const project of projects) {
+    console.error(`\nIndexing ${project.name}...`);
+
+    const repoName = getRepoName(project.repo);
+    const symlinkPath = path.join(docsDir, repoName);
+
+    // Parse toml-engine option if present
+    const options = project.options || [];
+    const tomlEngineIndex = options.indexOf("--toml-engine");
+    const tomlEngine =
+      tomlEngineIndex !== -1 && options[tomlEngineIndex + 1] === "smol-toml" ? "smol-toml" : "toml";
+
+    // Call cmdIndex directly
+    cmdIndex(symlinkPath, project.name, project.path, tomlEngine);
+
+    // Update indexed-at
+    const lockedProject = lockfile.projects.find((p) => p.name === project.name);
+    if (lockedProject) {
+      lockedProject["indexed-at"] = new Date().toISOString();
+    }
+  }
+}
 
 export function cmdInstall(configPath?: string, projectFilter?: string) {
   console.error("Starting install...");
@@ -66,40 +151,7 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   let lockfile = lockfileResult.value;
 
   // Clone/update repositories
-  for (const project of projectsToProcess) {
-    console.error(`\nProcessing ${project.name}...`);
-
-    const cloneResult = cloneRepository(project, repoRoot);
-    if (cloneResult.isErr()) {
-      console.error(`  Failed to clone: ${cloneResult.error.reason}`);
-      process.exit(1);
-    }
-
-    const { resolvedRef, clonedAt } = cloneResult.value;
-
-    // Update lockfile
-    const lockedProject: LockedProject = {
-      name: project.name,
-      repo: project.repo,
-      "ref-requested": project.ref || "main",
-      "ref-resolved": resolvedRef,
-      "cloned-at": clonedAt,
-      "indexed-at": null,
-    };
-
-    lockfile = updateLockedProject(lockfile, lockedProject);
-
-    // Create symlink
-    const [owner, repoName] = project.repo.split("/");
-    const repoPath = path.join(repoRoot, owner, repoName!);
-    const symlinkPath = path.join(docsDir, repoName!);
-
-    fs.mkdirSync(docsDir, { recursive: true });
-    if (!fs.existsSync(symlinkPath)) {
-      fs.symlinkSync(repoPath, symlinkPath);
-      console.error(`  Created symlink: ${symlinkPath}`);
-    }
-  }
+  lockfile = processCloning(projectsToProcess, repoRoot, docsDir, lockfile);
 
   // Write lockfile after cloning
   const writeResult = writeLockfile(lockfilePath, lockfile);
@@ -111,29 +163,7 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   console.error(`\nLockfile written: ${lockfilePath}`);
 
   // Index projects
-  for (const project of projectsToProcess) {
-    console.error(`\nIndexing ${project.name}...`);
-
-    const [, repoName] = project.repo.split("/");
-    const symlinkPath = path.join(docsDir, repoName!);
-
-    // Parse toml-engine option if present
-    const options = project.options || [];
-    const tomlEngineIndex = options.indexOf("--toml-engine");
-    const tomlEngine =
-      tomlEngineIndex !== -1 && options[tomlEngineIndex + 1] === "smol-toml"
-        ? "smol-toml"
-        : "toml";
-
-    // Call cmdIndex directly
-    cmdIndex(symlinkPath, project.name, project.path, tomlEngine);
-
-    // Update indexed-at
-    const lockedProject = lockfile.projects.find((p) => p.name === project.name);
-    if (lockedProject) {
-      lockedProject["indexed-at"] = new Date().toISOString();
-    }
-  }
+  processIndexing(projectsToProcess, docsDir, lockfile);
 
   // Write lockfile with indexed-at timestamps
   const finalWriteResult = writeLockfile(lockfilePath, lockfile);
