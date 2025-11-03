@@ -8,7 +8,8 @@ import { buildCloneUrl, parseRepoUrl } from "./parseRepoUrl.js";
 export type GitError =
   | { type: "clone_failed"; reason: string }
   | { type: "checkout_failed"; reason: string }
-  | { type: "resolve_ref_failed"; reason: string };
+  | { type: "resolve_ref_failed"; reason: string }
+  | { type: "invalid_repo_url"; reason: string };
 
 export interface CloneResult {
   resolvedRef: string; // commit hash
@@ -25,9 +26,17 @@ export function cloneRepository(
   project: NormalizedProjectConfig,
   repoRoot: string,
 ): Result<CloneResult, GitError> {
+  // Parse repo URL (supports "owner/repo" or "host/owner/repo")
+  const repoInfoResult = parseRepoUrl(project.repo);
+  if (repoInfoResult.isErr()) {
+    return err({
+      type: "invalid_repo_url",
+      reason: repoInfoResult.error.message,
+    });
+  }
+  const repoInfo = repoInfoResult.value;
+
   try {
-    // Parse repo URL (supports "owner/repo" or "host/owner/repo")
-    const repoInfo = parseRepoUrl(project.repo);
     const cloneUrl = buildCloneUrl(repoInfo);
 
     // Build repo path: repos/host/owner/name

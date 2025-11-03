@@ -19,16 +19,12 @@ export function readLockfile(lockfilePath: string): Result<Lockfile, Error> {
   return R.fromThrowable(
     () => {
       const content = fs.readFileSync(lockfilePath, "utf8");
-      const data = yaml.load(content);
-      const parseResult = parseLockfile(data);
-      if (parseResult.isErr()) {
-        // eslint-disable-next-line fp/no-throw
-        throw parseResult.error;
-      }
-      return parseResult.value;
+      return yaml.load(content);
     },
     (error) => new Error(`Failed to read lockfile: ${error}`),
-  )();
+  )()
+    .andThen((data) => parseLockfile(data))
+    .mapErr((error) => new Error(`Invalid lockfile format: ${error.message}`));
 }
 
 /**

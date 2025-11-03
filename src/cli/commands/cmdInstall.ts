@@ -46,7 +46,12 @@ function processCloning(
     updatedLockfile = updateLockedProject(updatedLockfile, lockedProject);
 
     // Create symlink: docs/repo-name -> repos/host/owner/repo
-    const repoInfo = parseRepoUrl(project.repo);
+    const repoInfoResult = parseRepoUrl(project.repo);
+    if (repoInfoResult.isErr()) {
+      console.error(`  Failed to parse repo URL: ${repoInfoResult.error.message}`);
+      process.exit(1);
+    }
+    const repoInfo = repoInfoResult.value;
     const symlinkPath = path.join(docsDir, repoInfo.name);
 
     fs.mkdirSync(docsDir, { recursive: true });
@@ -70,7 +75,12 @@ function processIndexing(
   for (const project of projects) {
     console.error(`\nIndexing ${project.name}...`);
 
-    const repoInfo = parseRepoUrl(project.repo);
+    const repoInfoResult = parseRepoUrl(project.repo);
+    if (repoInfoResult.isErr()) {
+      console.error(`  Failed to parse repo URL: ${repoInfoResult.error.message}`);
+      process.exit(1);
+    }
+    const repoInfo = repoInfoResult.value;
     const symlinkPath = path.join(docsDir, repoInfo.name);
 
     // Parse toml-engine option if present
@@ -99,16 +109,12 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   const configResult = R.fromThrowable(
     () => {
       const content = fs.readFileSync(actualConfigPath, "utf8");
-      const data = yaml.load(content);
-      const parseResult = parseAnydocsConfig(data);
-      if (parseResult.isErr()) {
-        // eslint-disable-next-line fp/no-throw
-        throw parseResult.error;
-      }
-      return parseResult.value;
+      return yaml.load(content);
     },
     (error) => new Error(`Failed to read config: ${error}`),
-  )();
+  )()
+    .andThen((data) => parseAnydocsConfig(data))
+    .mapErr((error) => new Error(`Invalid config format: ${error.message}`));
 
   if (configResult.isErr()) {
     console.error(`Error: ${configResult.error.message}`);

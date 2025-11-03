@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+
 /**
  * Parse repository URL in ghq-style format
  *
@@ -13,41 +15,38 @@ export interface RepoInfo {
   fullPath: string; // e.g., "github.com/owner/repo"
 }
 
-export function parseRepoUrl(repo: string): RepoInfo {
+export function parseRepoUrl(repo: string): Result<RepoInfo, Error> {
   const parts = repo.split("/");
 
   if (parts.length === 2) {
     // owner/repo → github.com/owner/repo
     const [owner, name] = parts;
     if (!owner || !name) {
-      // eslint-disable-next-line fp/no-throw
-      throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo"`);
+      return err(new Error(`Invalid repo format: ${repo}. Expected "owner/repo"`));
     }
-    return {
+    return ok({
       host: "github.com",
       owner,
       name,
       fullPath: `github.com/${owner}/${name}`,
-    };
+    });
   }
 
   if (parts.length === 3) {
     // host/owner/repo
     const [host, owner, name] = parts;
     if (!host || !owner || !name) {
-      // eslint-disable-next-line fp/no-throw
-      throw new Error(`Invalid repo format: ${repo}. Expected "host/owner/repo"`);
+      return err(new Error(`Invalid repo format: ${repo}. Expected "host/owner/repo"`));
     }
-    return {
+    return ok({
       host,
       owner,
       name,
       fullPath: `${host}/${owner}/${name}`,
-    };
+    });
   }
 
-  // eslint-disable-next-line fp/no-throw
-  throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo" or "host/owner/repo"`);
+  return err(new Error(`Invalid repo format: ${repo}. Expected "owner/repo" or "host/owner/repo"`));
 }
 
 /**
