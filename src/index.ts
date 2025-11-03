@@ -2,9 +2,9 @@
 import { Command } from "commander";
 import { collectProjects } from "./cli/collectProjects.js";
 import { cmdDocs } from "./cli/commands/cmdDocs.js";
+import { cmdGenerateSetup } from "./cli/commands/cmdGenerateSetup.js";
 import { cmdIndex } from "./cli/commands/cmdIndex.js";
 import { cmdSearch } from "./cli/commands/cmdSearch.js";
-import { cmdGenerateSetup } from "./cli/commands/cmdGenerateSetup.js";
 
 const program = new Command();
 program.name("mydocs").description("Docs & search CLI using SQLite FTS5");

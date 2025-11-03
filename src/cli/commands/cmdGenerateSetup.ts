@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
-import { parseRegistryConfig } from "../../registry/schemas.js";
 import { generateSetupScript } from "../../registry/generateSetup.js";
+import { parseRegistryConfig } from "../../registry/schemas.js";
 
 export function cmdGenerateSetup(configPath: string) {
   // Read config file

@@ -1,5 +1,5 @@
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import type { ProjectConfig } from "./schemas.js";
 
 /**
@@ -21,7 +21,7 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
   const defaultRepoRoot = path.join(mydocsRoot, "repos");
   const effectiveRepoRoot = repoRoot || defaultRepoRoot;
 
-  lines.push(`# Configuration`);
+  lines.push("# Configuration");
   lines.push(`MYDOCS_DOCS_DIR="${mydocsRoot}/docs"`);
   lines.push(`REPO_ROOT="\${MYDOCS_REPO_ROOT:-${effectiveRepoRoot}}"`);
   lines.push(`MYDOCS_CLI="\${MYDOCS_CLI:-mydocs}"`);
@@ -71,20 +71,21 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
       lines.push(`  git checkout ${project.ref}`);
     }
 
-    lines.push(`else`);
+    lines.push("else");
     lines.push(`  echo "  Repository already exists, skipping clone"`);
-    lines.push(`fi`);
+    lines.push("fi");
     lines.push("");
 
     // Create symlink
     const symlinkPath = `\${MYDOCS_DOCS_DIR}/${repoName}`;
-    lines.push(`mkdir -p \${MYDOCS_DOCS_DIR}`);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Shell script variable
+    lines.push("mkdir -p ${MYDOCS_DOCS_DIR}");
     lines.push(`if [ ! -L "${symlinkPath}" ]; then`);
     lines.push(`  ln -sf ${repoPath} ${symlinkPath}`);
     lines.push(`  echo "  Created symlink: ${symlinkPath}"`);
-    lines.push(`else`);
+    lines.push("else");
     lines.push(`  echo "  Symlink already exists"`);
-    lines.push(`fi`);
+    lines.push("fi");
     lines.push("");
 
     // Run mydocs index
@@ -103,7 +104,13 @@ export function generateSetupScript(projects: ProjectConfig[], repoRoot?: string
  * Build mydocs index command with options
  */
 function buildIndexCommand(project: ProjectConfig, symlinkPath: string): string {
-  const parts = ["$MYDOCS_CLI", "index", symlinkPath, `"${project.path}"`, `--project ${project.name}`];
+  const parts = [
+    "$MYDOCS_CLI",
+    "index",
+    symlinkPath,
+    `"${project.path}"`,
+    `--project ${project.name}`,
+  ];
 
   // Add options from path-meta
   if (project["path-meta"]?.options) {
