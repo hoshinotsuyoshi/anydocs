@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { err, ok, type Result } from "neverthrow";
 import type { ProjectConfig } from "./configSchemas.js";
+import { buildCloneUrl, parseRepoUrl } from "./parseRepoUrl.js";
 
 export type GitError =
   | { type: "clone_failed"; reason: string }
@@ -12,6 +13,8 @@ export type GitError =
 export interface CloneResult {
   resolvedRef: string; // commit hash
   clonedAt: string; // ISO 8601 timestamp
+  fullPath: string; // e.g., "github.com/owner/repo"
+  repoPath: string; // absolute path to cloned repo
 }
 
 /**
@@ -21,18 +24,15 @@ export function cloneRepository(
   project: ProjectConfig,
   repoRoot: string,
 ): Result<CloneResult, GitError> {
-  const [owner, repoName] = project.repo.split("/");
-  if (!owner || !repoName) {
-    return err({
-      type: "clone_failed",
-      reason: `Invalid repo format: ${project.repo}`,
-    });
-  }
-
-  const repoDir = path.join(repoRoot, owner);
-  const repoPath = path.join(repoDir, repoName);
-
   try {
+    // Parse repo URL (supports "owner/repo" or "host/owner/repo")
+    const repoInfo = parseRepoUrl(project.repo);
+    const cloneUrl = buildCloneUrl(repoInfo);
+
+    // Build repo path: repos/host/owner/name
+    const repoDir = path.join(repoRoot, repoInfo.host, repoInfo.owner);
+    const repoPath = path.join(repoDir, repoInfo.name);
+
     // Create parent directory
     fs.mkdirSync(repoDir, { recursive: true });
 
@@ -42,16 +42,16 @@ export function cloneRepository(
     } else {
       // Clone repository
       if (project["sparse-checkout"]) {
-        execSync(
-          `git clone --depth 1 --filter=blob:none --sparse https://github.com/${project.repo}.git`,
-          { cwd: repoDir, stdio: "inherit" },
-        );
+        execSync(`git clone --depth 1 --filter=blob:none --sparse ${cloneUrl}`, {
+          cwd: repoDir,
+          stdio: "inherit",
+        });
         execSync(`git sparse-checkout set ${project["sparse-checkout"].join(" ")}`, {
           cwd: repoPath,
           stdio: "inherit",
         });
       } else {
-        execSync(`git clone --depth 1 https://github.com/${project.repo}.git`, {
+        execSync(`git clone --depth 1 ${cloneUrl}`, {
           cwd: repoDir,
           stdio: "inherit",
         });
@@ -75,6 +75,8 @@ export function cloneRepository(
     return ok({
       resolvedRef,
       clonedAt: new Date().toISOString(),
+      fullPath: repoInfo.fullPath,
+      repoPath,
     });
   } catch (error) {
     return err({

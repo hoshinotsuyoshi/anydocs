@@ -8,18 +8,8 @@ import { parseMydocsConfig } from "../../sync/configSchemas.js";
 import { cloneRepository } from "../../sync/gitOperations.js";
 import { readLockfile, updateLockedProject, writeLockfile } from "../../sync/lockfileOperations.js";
 import type { LockedProject, Lockfile } from "../../sync/lockfileSchemas.js";
+import { parseRepoUrl } from "../../sync/parseRepoUrl.js";
 import { cmdIndex } from "./cmdIndex.js";
-
-/**
- * Extract repository name from "owner/repo" format
- */
-function getRepoName(repo: string): string {
-  const parts = repo.split("/");
-  if (parts.length !== 2 || !parts[1]) {
-    throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo"`);
-  }
-  return parts[1];
-}
 
 /**
  * Process cloning/updating repositories
@@ -41,12 +31,12 @@ function processCloning(
       process.exit(1);
     }
 
-    const { resolvedRef, clonedAt } = cloneResult.value;
+    const { resolvedRef, clonedAt, fullPath, repoPath } = cloneResult.value;
 
-    // Update lockfile
+    // Update lockfile with full path (e.g., "github.com/owner/repo")
     const lockedProject: LockedProject = {
       name: project.name,
-      repo: project.repo,
+      repo: fullPath,
       "ref-requested": project.ref || "main",
       "ref-resolved": resolvedRef,
       "cloned-at": clonedAt,
@@ -55,11 +45,9 @@ function processCloning(
 
     updatedLockfile = updateLockedProject(updatedLockfile, lockedProject);
 
-    // Create symlink
-    const repoName = getRepoName(project.repo);
-    const [owner] = project.repo.split("/");
-    const repoPath = path.join(repoRoot, owner, repoName);
-    const symlinkPath = path.join(docsDir, repoName);
+    // Create symlink: docs/repo-name -> repos/host/owner/repo
+    const repoInfo = parseRepoUrl(project.repo);
+    const symlinkPath = path.join(docsDir, repoInfo.name);
 
     fs.mkdirSync(docsDir, { recursive: true });
     if (!fs.existsSync(symlinkPath)) {
@@ -78,8 +66,8 @@ function processIndexing(projects: ProjectConfig[], docsDir: string, lockfile: L
   for (const project of projects) {
     console.error(`\nIndexing ${project.name}...`);
 
-    const repoName = getRepoName(project.repo);
-    const symlinkPath = path.join(docsDir, repoName);
+    const repoInfo = parseRepoUrl(project.repo);
+    const symlinkPath = path.join(docsDir, repoInfo.name);
 
     // Parse toml-engine option if present
     const options = project.options || [];
