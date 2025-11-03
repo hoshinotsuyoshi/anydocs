@@ -1,6 +1,6 @@
 {
   "name": "anydocs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Documentation search CLI using SQLite FTS5 full-text search with Porter stemming and BM25 ranking",
   "type": "module",
   "main": "dist/index.js",
