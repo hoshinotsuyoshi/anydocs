@@ -1,8 +1,8 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
+import { CONFIG_PATH, DOCS_DIR, LOCKFILE_PATH, REPOS_DIR } from "../../config/paths.js";
 import type { ProjectConfig } from "../../sync/configSchemas.js";
 import { parseMydocsConfig } from "../../sync/configSchemas.js";
 import { cloneRepository } from "../../sync/gitOperations.js";
@@ -101,10 +101,7 @@ function processIndexing(projects: ProjectConfig[], docsDir: string, lockfile: L
 export function cmdInstall(configPath?: string, projectFilter?: string) {
   console.error("Starting install...");
 
-  const homeDir = os.homedir();
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(homeDir, ".config");
-  const defaultConfigPath = path.join(xdgConfigHome, "mydocs", "mydocs.json");
-  const actualConfigPath = configPath || defaultConfigPath;
+  const actualConfigPath = configPath || CONFIG_PATH;
 
   // Read mydocs.json
   const configResult = R.fromThrowable(
@@ -126,10 +123,6 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   }
 
   const config = configResult.value;
-  const mydocsRoot = path.join(homeDir, ".local/share/mydocs");
-  const repoRoot = path.join(mydocsRoot, "repos");
-  const docsDir = path.join(mydocsRoot, "docs");
-  const lockfilePath = path.join(mydocsRoot, "mydocs-lock.yaml");
 
   // Filter projects if specified
   const projectsToProcess = projectFilter
@@ -142,7 +135,7 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   }
 
   // Read lockfile
-  const lockfileResult = readLockfile(lockfilePath);
+  const lockfileResult = readLockfile(LOCKFILE_PATH);
   if (lockfileResult.isErr()) {
     console.error(`Error: ${lockfileResult.error.message}`);
     process.exit(1);
@@ -151,22 +144,22 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
   let lockfile = lockfileResult.value;
 
   // Clone/update repositories
-  lockfile = processCloning(projectsToProcess, repoRoot, docsDir, lockfile);
+  lockfile = processCloning(projectsToProcess, REPOS_DIR, DOCS_DIR, lockfile);
 
   // Write lockfile after cloning
-  const writeResult = writeLockfile(lockfilePath, lockfile);
+  const writeResult = writeLockfile(LOCKFILE_PATH, lockfile);
   if (writeResult.isErr()) {
     console.error(`Error: ${writeResult.error.message}`);
     process.exit(1);
   }
 
-  console.error(`\nLockfile written: ${lockfilePath}`);
+  console.error(`\nLockfile written: ${LOCKFILE_PATH}`);
 
   // Index projects
-  processIndexing(projectsToProcess, docsDir, lockfile);
+  processIndexing(projectsToProcess, DOCS_DIR, lockfile);
 
   // Write lockfile with indexed-at timestamps
-  const finalWriteResult = writeLockfile(lockfilePath, lockfile);
+  const finalWriteResult = writeLockfile(LOCKFILE_PATH, lockfile);
   if (finalWriteResult.isErr()) {
     console.error(`Error: ${finalWriteResult.error.message}`);
     process.exit(1);
