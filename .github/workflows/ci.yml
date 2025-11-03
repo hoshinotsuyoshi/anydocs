@@ -32,6 +32,9 @@ jobs:
       - name: Run Biome check
         run: pnpm run lint
 
+      - name: Run knip
+        run: pnpm knip
+
   test:
     name: Test
     runs-on: ubuntu-latest
