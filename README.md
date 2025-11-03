@@ -20,12 +20,13 @@ pnpm run build
 ## Quick Start
 
 ```bash
-# 1. Build the project
-pnpm install
-pnpm run build
+# 1. Install globally
+npm install -g anydocs
+# or
+pnpm install -g anydocs
 
 # 2. Initialize anydocs
-node dist/index.js init
+anydocs init
 
 # 3. Edit config file at ~/.config/anydocs/anydocs.json
 cat > ~/.config/anydocs/anydocs.json << 'EOF'
@@ -37,13 +38,13 @@ cat > ~/.config/anydocs/anydocs.json << 'EOF'
 EOF
 
 # 4. Install (clone and index) projects
-node dist/index.js install
+anydocs install
 
 # 5. Search for content
-node dist/index.js search "routing" -n 5
+anydocs search "routing" -n 5
 
 # 6. Retrieve a specific document
-node dist/index.js docs /docs/app/getting-started.md --project next.js
+anydocs docs /docs/app/getting-started.md --project next.js
 ```
 
 ## Usage
@@ -81,10 +82,10 @@ Install (clone and index) all configured projects:
 
 ```bash
 # Install all projects
-node dist/index.js install
+anydocs install
 
 # Install specific project only
-node dist/index.js install --project next.js
+anydocs install --project next.js
 ```
 
 **What install does:**
@@ -98,17 +99,17 @@ node dist/index.js install --project next.js
 
 ```bash
 # Basic search
-node dist/index.js search "hello"
+anydocs search "hello"
 
 # Limit number of results
-node dist/index.js search "world" -n 5
+anydocs search "world" -n 5
 
 # Search with FTS5 query syntax
-node dist/index.js search "hello AND world"
-node dist/index.js search '"exact phrase"'
-node dist/index.js search "run*"  # Prefix search
-node dist/index.js search "hello OR world"
-node dist/index.js search "hello NOT world"
+anydocs search "hello AND world"
+anydocs search '"exact phrase"'
+anydocs search "run*"  # Prefix search
+anydocs search "hello OR world"
+anydocs search "hello NOT world"
 ```
 
 **Search output (JSON):**
@@ -128,7 +129,7 @@ node dist/index.js search "hello NOT world"
 Retrieve the raw Markdown content:
 
 ```bash
-node dist/index.js docs /guide/intro.md
+anydocs docs /guide/intro.md --project next.js
 ```
 
 Output is the original Markdown with front-matter removed.
@@ -137,7 +138,7 @@ Output is the original Markdown with front-matter removed.
 
 ```bash
 # Initialize anydocs
-node dist/index.js init
+anydocs init
 
 # Configure projects
 cat > ~/.config/anydocs/anydocs.json << 'EOF'
@@ -150,19 +151,19 @@ cat > ~/.config/anydocs/anydocs.json << 'EOF'
 EOF
 
 # Install all projects
-node dist/index.js install
+anydocs install
 
 # Search across all projects
-node dist/index.js search "hooks" -n 5
+anydocs search "hooks" -n 5
 
 # Search specific project
-node dist/index.js search "routing" --project next.js
+anydocs search "routing" --project next.js
 
 # Get specific document
-node dist/index.js docs /docs/app/routing.md --project next.js
+anydocs docs /docs/app/routing.md --project next.js
 
 # Re-install (updates existing entries)
-node dist/index.js install
+anydocs install
 ```
 
 ## Architecture
