@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { err, ok, type Result } from "neverthrow";
-import type { ProjectConfig } from "./configSchemas.js";
+import type { NormalizedProjectConfig } from "./configSchemas.js";
 import { buildCloneUrl, parseRepoUrl } from "./parseRepoUrl.js";
 
 export type GitError =
@@ -12,6 +12,7 @@ export type GitError =
 
 export interface CloneResult {
   resolvedRef: string; // commit hash
+  requestedRef: string; // branch or commit that was requested (may be default branch)
   clonedAt: string; // ISO 8601 timestamp
   fullPath: string; // e.g., "github.com/owner/repo"
   repoPath: string; // absolute path to cloned repo
@@ -21,7 +22,7 @@ export interface CloneResult {
  * Clone repository or return existing path
  */
 export function cloneRepository(
-  project: ProjectConfig,
+  project: NormalizedProjectConfig,
   repoRoot: string,
 ): Result<CloneResult, GitError> {
   try {
@@ -58,9 +59,25 @@ export function cloneRepository(
       }
     }
 
-    // Checkout specific ref if provided
+    // Checkout specific ref if provided, otherwise use default branch
+    let requestedRef: string;
     if (project.ref) {
+      requestedRef = project.ref;
       execSync(`git checkout ${project.ref}`, {
+        cwd: repoPath,
+        stdio: "inherit",
+      });
+    } else {
+      // Get default branch and checkout
+      const defaultBranch = execSync("git symbolic-ref refs/remotes/origin/HEAD", {
+        cwd: repoPath,
+        encoding: "utf8",
+      })
+        .trim()
+        .replace("refs/remotes/origin/", "");
+
+      requestedRef = defaultBranch;
+      execSync(`git checkout ${defaultBranch}`, {
         cwd: repoPath,
         stdio: "inherit",
       });
@@ -74,6 +91,7 @@ export function cloneRepository(
 
     return ok({
       resolvedRef,
+      requestedRef,
       clonedAt: new Date().toISOString(),
       fullPath: repoInfo.fullPath,
       repoPath,

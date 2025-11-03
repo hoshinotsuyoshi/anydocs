@@ -3,13 +3,14 @@ import * as v from "valibot";
 
 /**
  * Schema for mydocs.json (user-editable config)
+ * Only 'repo' is required, other fields have defaults
  */
 export const ProjectConfigSchema = v.object({
-  name: v.string(),
-  repo: v.string(), // e.g., "supabase/supabase"
-  ref: v.optional(v.string()), // branch or commit, defaults to "main"
+  name: v.optional(v.string()), // defaults to repo name (last part after slash)
+  repo: v.string(), // e.g., "supabase/supabase" or "github.com/supabase/supabase"
+  ref: v.optional(v.string()), // defaults to repository's default branch
   "sparse-checkout": v.optional(v.array(v.string())), // paths to checkout
-  path: v.string(), // glob pattern for indexing
+  path: v.optional(v.string()), // defaults to "**/*.{md,mdx}"
   options: v.optional(v.array(v.string())), // CLI options
 });
 
@@ -21,6 +22,18 @@ export type ProjectConfig = v.InferOutput<typeof ProjectConfigSchema>;
 export type MydocsConfig = v.InferOutput<typeof MydocsConfigSchema>;
 
 /**
+ * Normalized project config with all defaults applied
+ */
+export interface NormalizedProjectConfig {
+  name: string;
+  repo: string;
+  ref: string | undefined; // undefined means use default branch
+  "sparse-checkout"?: string[];
+  path: string;
+  options?: string[];
+}
+
+/**
  * Parse mydocs.json config
  */
 export function parseMydocsConfig(data: unknown): Result<MydocsConfig, Error> {
@@ -30,4 +43,23 @@ export function parseMydocsConfig(data: unknown): Result<MydocsConfig, Error> {
   } catch (error) {
     return err(new Error(`Invalid mydocs.json: ${error}`));
   }
+}
+
+/**
+ * Apply default values to project config
+ */
+export function normalizeProjectConfig(config: ProjectConfig): NormalizedProjectConfig {
+  // Extract repo name from last part of repo string
+  // "supermacro/neverthrow" -> "neverthrow"
+  // "github.com/supermacro/neverthrow" -> "neverthrow"
+  const repoName = config.repo.split("/").pop() || config.repo;
+
+  return {
+    name: config.name || repoName,
+    repo: config.repo,
+    ref: config.ref, // undefined means use default branch
+    "sparse-checkout": config["sparse-checkout"],
+    path: config.path || "**/*.{md,mdx}",
+    options: config.options,
+  };
 }

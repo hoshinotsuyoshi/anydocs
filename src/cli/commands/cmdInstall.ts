@@ -3,8 +3,8 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
 import { CONFIG_PATH, DOCS_DIR, LOCKFILE_PATH, REPOS_DIR } from "../../config/paths.js";
-import type { ProjectConfig } from "../../sync/configSchemas.js";
-import { parseMydocsConfig } from "../../sync/configSchemas.js";
+import type { NormalizedProjectConfig } from "../../sync/configSchemas.js";
+import { normalizeProjectConfig, parseMydocsConfig } from "../../sync/configSchemas.js";
 import { cloneRepository } from "../../sync/gitOperations.js";
 import { readLockfile, updateLockedProject, writeLockfile } from "../../sync/lockfileOperations.js";
 import type { LockedProject, Lockfile } from "../../sync/lockfileSchemas.js";
@@ -15,7 +15,7 @@ import { cmdIndex } from "./cmdIndex.js";
  * Process cloning/updating repositories
  */
 function processCloning(
-  projects: ProjectConfig[],
+  projects: NormalizedProjectConfig[],
   repoRoot: string,
   docsDir: string,
   lockfile: Lockfile,
@@ -31,13 +31,13 @@ function processCloning(
       process.exit(1);
     }
 
-    const { resolvedRef, clonedAt, fullPath, repoPath } = cloneResult.value;
+    const { resolvedRef, requestedRef, clonedAt, fullPath, repoPath } = cloneResult.value;
 
     // Update lockfile with full path (e.g., "github.com/owner/repo")
     const lockedProject: LockedProject = {
       name: project.name,
       repo: fullPath,
-      "ref-requested": project.ref || "main",
+      "ref-requested": requestedRef,
       "ref-resolved": resolvedRef,
       "cloned-at": clonedAt,
       "indexed-at": null,
@@ -62,7 +62,11 @@ function processCloning(
 /**
  * Process indexing projects
  */
-function processIndexing(projects: ProjectConfig[], docsDir: string, lockfile: Lockfile): void {
+function processIndexing(
+  projects: NormalizedProjectConfig[],
+  docsDir: string,
+  lockfile: Lockfile,
+): void {
   for (const project of projects) {
     console.error(`\nIndexing ${project.name}...`);
 
@@ -112,10 +116,13 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
 
   const config = configResult.value;
 
+  // Normalize all projects (apply defaults)
+  const normalizedProjects = config.projects.map(normalizeProjectConfig);
+
   // Filter projects if specified
   const projectsToProcess = projectFilter
-    ? config.projects.filter((p) => p.name === projectFilter)
-    : config.projects;
+    ? normalizedProjects.filter((p) => p.name === projectFilter)
+    : normalizedProjects;
 
   if (projectFilter && projectsToProcess.length === 0) {
     console.error(`Error: Project "${projectFilter}" not found in config`);
