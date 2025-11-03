@@ -22,6 +22,7 @@ export function readLockfile(lockfilePath: string): Result<Lockfile, Error> {
       const data = yaml.load(content);
       const parseResult = parseLockfile(data);
       if (parseResult.isErr()) {
+        // eslint-disable-next-line fp/no-throw
         throw parseResult.error;
       }
       return parseResult.value;

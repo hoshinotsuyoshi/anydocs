@@ -20,6 +20,7 @@ export function parseRepoUrl(repo: string): RepoInfo {
     // owner/repo → github.com/owner/repo
     const [owner, name] = parts;
     if (!owner || !name) {
+      // eslint-disable-next-line fp/no-throw
       throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo"`);
     }
     return {
@@ -34,6 +35,7 @@ export function parseRepoUrl(repo: string): RepoInfo {
     // host/owner/repo
     const [host, owner, name] = parts;
     if (!host || !owner || !name) {
+      // eslint-disable-next-line fp/no-throw
       throw new Error(`Invalid repo format: ${repo}. Expected "host/owner/repo"`);
     }
     return {
@@ -44,6 +46,7 @@ export function parseRepoUrl(repo: string): RepoInfo {
     };
   }
 
+  // eslint-disable-next-line fp/no-throw
   throw new Error(`Invalid repo format: ${repo}. Expected "owner/repo" or "host/owner/repo"`);
 }
 

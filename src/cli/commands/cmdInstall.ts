@@ -102,6 +102,7 @@ export function cmdInstall(configPath?: string, projectFilter?: string) {
       const data = yaml.load(content);
       const parseResult = parseAnydocsConfig(data);
       if (parseResult.isErr()) {
+        // eslint-disable-next-line fp/no-throw
         throw parseResult.error;
       }
       return parseResult.value;
