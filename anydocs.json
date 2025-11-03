@@ -37,6 +37,12 @@
       "repo": "webpro-nl/knip",
       "sparse-checkout": ["packages/docs/src/content/docs"],
       "path": "packages/docs/src/content/docs/**/*.{md,mdx}"
+    },
+    {
+      "name": "biome-website",
+      "repo": "biomejs/website",
+      "sparse-checkout": ["src/content/docs"],
+      "path": "src/content/docs/**/*.{md,mdx}"
     }
   ]
 }
