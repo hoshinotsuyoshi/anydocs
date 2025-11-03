@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { execSync } from "node:child_process";
 import yaml from "js-yaml";
 import { Result as R } from "neverthrow";
 import { parseMydocsConfig } from "../../sync/configSchemas.js";
@@ -12,14 +11,20 @@ import {
   writeLockfile,
 } from "../../sync/lockfileOperations.js";
 import type { LockedProject } from "../../sync/lockfileSchemas.js";
+import { cmdIndex } from "./cmdIndex.js";
 
-export function cmdSync(configPath: string) {
-  console.error("Starting sync...");
+export function cmdInstall(configPath?: string, projectFilter?: string) {
+  console.error("Starting install...");
+
+  const homeDir = os.homedir();
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(homeDir, ".config");
+  const defaultConfigPath = path.join(xdgConfigHome, "mydocs", "mydocs.json");
+  const actualConfigPath = configPath || defaultConfigPath;
 
   // Read mydocs.json
   const configResult = R.fromThrowable(
     () => {
-      const content = fs.readFileSync(configPath, "utf8");
+      const content = fs.readFileSync(actualConfigPath, "utf8");
       const data = yaml.load(content);
       const parseResult = parseMydocsConfig(data);
       if (parseResult.isErr()) {
@@ -36,11 +41,20 @@ export function cmdSync(configPath: string) {
   }
 
   const config = configResult.value;
-  const homeDir = os.homedir();
   const mydocsRoot = path.join(homeDir, ".local/share/mydocs");
   const repoRoot = path.join(mydocsRoot, "repos");
   const docsDir = path.join(mydocsRoot, "docs");
   const lockfilePath = path.join(mydocsRoot, "mydocs-lock.yaml");
+
+  // Filter projects if specified
+  const projectsToProcess = projectFilter
+    ? config.projects.filter((p) => p.name === projectFilter)
+    : config.projects;
+
+  if (projectFilter && projectsToProcess.length === 0) {
+    console.error(`Error: Project "${projectFilter}" not found in config`);
+    process.exit(1);
+  }
 
   // Read lockfile
   const lockfileResult = readLockfile(lockfilePath);
@@ -52,7 +66,7 @@ export function cmdSync(configPath: string) {
   let lockfile = lockfileResult.value;
 
   // Clone/update repositories
-  for (const project of config.projects) {
+  for (const project of projectsToProcess) {
     console.error(`\nProcessing ${project.name}...`);
 
     const cloneResult = cloneRepository(project, repoRoot);
@@ -97,25 +111,27 @@ export function cmdSync(configPath: string) {
   console.error(`\nLockfile written: ${lockfilePath}`);
 
   // Index projects
-  for (const project of config.projects) {
+  for (const project of projectsToProcess) {
     console.error(`\nIndexing ${project.name}...`);
 
     const [, repoName] = project.repo.split("/");
     const symlinkPath = path.join(docsDir, repoName!);
 
-    try {
-      const options = project.options || [];
-      const cmd = `node dist/index.js index "${symlinkPath}" "${project.path}" --project ${project.name} ${options.join(" ")}`;
-      execSync(cmd, { stdio: "inherit" });
+    // Parse toml-engine option if present
+    const options = project.options || [];
+    const tomlEngineIndex = options.indexOf("--toml-engine");
+    const tomlEngine =
+      tomlEngineIndex !== -1 && options[tomlEngineIndex + 1] === "smol-toml"
+        ? "smol-toml"
+        : "toml";
 
-      // Update indexed-at
-      const lockedProject = lockfile.projects.find((p) => p.name === project.name);
-      if (lockedProject) {
-        lockedProject["indexed-at"] = new Date().toISOString();
-      }
-    } catch (error) {
-      console.error(`  Failed to index: ${error}`);
-      process.exit(1);
+    // Call cmdIndex directly
+    cmdIndex(symlinkPath, project.name, project.path, tomlEngine);
+
+    // Update indexed-at
+    const lockedProject = lockfile.projects.find((p) => p.name === project.name);
+    if (lockedProject) {
+      lockedProject["indexed-at"] = new Date().toISOString();
     }
   }
 
@@ -126,5 +142,5 @@ export function cmdSync(configPath: string) {
     process.exit(1);
   }
 
-  console.error("\nSync complete!");
+  console.error("\nInstall complete!");
 }
